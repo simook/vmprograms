@@ -5,10 +5,6 @@
 #include <cstring>
 #include <vector>
 
-char *path = NULL;
-void* user_data;
-unsigned int *identifier;
-
 constexpr uint32_t LE32(char a, char b, char c, char d) {
 	return (a << 0) | (b << 8) | (c << 16) | (d << 24);
 }
@@ -29,11 +25,6 @@ struct WAV_header {
 	uint32_t data_size;
 } __attribute__((packed));
 static_assert(sizeof(WAV_header) == 44);
-
-static void writeWAV(FILE* f, const std::vector<char>& wav)
-{
-	fwrite(wav.data(), 1, wav.size(), f);
-}
 
 static void setupWAV(std::vector<char>& wav,
 	int samplerate, int channels)
@@ -80,7 +71,9 @@ static int callback(short* s, int length, espeak_EVENT* ev)
 static const int buflength = 500;
 int main()
 {
-	const char voicename[] = {"English"}; // Set voice by its name
+	const char voicename[] = "Storm";
+	const char *path = NULL;
+
 	espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, buflength, path, 0x0);
 	espeak_SetVoiceByName(voicename);
 	espeak_SetSynthCallback(callback);
@@ -92,16 +85,16 @@ extern "C" __attribute__((used))
 void my_backend(const char *text)
 {
 	static const unsigned int flags = espeakCHARS_AUTO;
+	unsigned int* identifier = NULL;
+	void* user_data = NULL;
+
 	setupWAV(wav, 22050, 1);
 
 	printf("Saying  '%s'...\n", text);
-	espeak_ERROR result =
-		espeak_Synth(text, buflength, 0, POS_CHARACTER, 0, flags, identifier, user_data);
-	//printf("Result: %d\n", result);
-	(void) result;
+	espeak_Synth(&text[1], buflength, 0, POS_CHARACTER, 0, flags, identifier, user_data);
 
 	finalizeWAV(wav, sampleCount);
 
-	const char mtype[] = "audio/wav";
+	const char mtype[] = "audio/vnd.wave";
 	backend_response(mtype, sizeof(mtype)-1, wav.data(), wav.size());
 }
