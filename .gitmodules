@@ -1,0 +1,3 @@
+[submodule "examples/lodepng"]
+	path = examples/lodepng
+	url = https://github.com/lvandeve/lodepng.git
