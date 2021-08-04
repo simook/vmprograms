@@ -1,3 +1,6 @@
 [submodule "examples/lodepng"]
 	path = examples/lodepng
 	url = https://github.com/lvandeve/lodepng.git
+[submodule "examples/mandelbrot-simd-rs"]
+	path = examples/mandelbrot-simd-rs
+	url = https://github.com/fwsGonzo/mandelbrot-simd-rs.git
