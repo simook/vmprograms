@@ -11,12 +11,32 @@ asm(".global backend_response\n" \
 "	mov $0xFFFF, %eax\n" \
 "	out %eax, $0\n");
 
+asm(".global storage_call\n" \
+".type storage_call, function\n" \
+"storage_call:\n" \
+"	mov $0x10707, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global storage_return\n" \
+".type storage_return, function\n" \
+"storage_return:\n" \
+"	mov $0xFFFF, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
 /* Use this to create a backend response from a KVM backend */
 extern void __attribute__((noreturn))
 backend_response(const void *t, uint64_t, const void *c, uint64_t);
 
+/* Use this to make a serialized call into the storage VM */
+typedef void* (*storage_func) (void* data, size_t len, size_t res);
+extern long
+storage_call(storage_func, const void* src, size_t, void* dst, size_t);
+extern void storage_return(const void* data, size_t len);
+
 static inline
-void return_result(const char *ctype, const char *content)
+void backend_response_str(const char *ctype, const char *content)
 {
 	backend_response(ctype, strlen(ctype), content, strlen(content));
 }
