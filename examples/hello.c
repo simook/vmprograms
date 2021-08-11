@@ -21,6 +21,13 @@ extern void my_backend(const char *arg)
 	backend_response(ctype, sizeof(ctype)-1, result, rlen-1);
 }
 
+__attribute__((used))
+extern void my_post_backend(const char *arg, void *data, size_t len)
+{
+	const char ctype[] = "text/plain";
+	backend_response(ctype, sizeof(ctype)-1, data, len);
+}
+
 static int counter = 0;
 void* my_storage(void *data, size_t len, size_t reslen)
 {

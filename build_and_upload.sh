@@ -6,6 +6,6 @@ tenant="${2-xpizza.com}"
 
 gcc -static -O2 $source -o "$tmpfile"
 
-source upload.sh "$tmpfile" "$tenant"
+./upload.sh "$tmpfile" "$tenant"
 
 rm -f "$tmpfile"
