@@ -30,7 +30,7 @@ extern void __attribute__((noreturn))
 backend_response(const void *t, uint64_t, const void *c, uint64_t);
 
 /* Use this to make a serialized call into the storage VM */
-typedef void* (*storage_func) (void* data, size_t len, size_t res);
+typedef void (*storage_func) (void* data, size_t len, size_t res);
 extern long
 storage_call(storage_func, const void* src, size_t, void* dst, size_t);
 extern void storage_return(const void* data, size_t len);

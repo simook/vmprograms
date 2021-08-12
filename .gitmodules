@@ -4,3 +4,9 @@
 [submodule "examples/mandelbrot-simd-rs"]
 	path = examples/mandelbrot-simd-rs
 	url = https://github.com/fwsGonzo/mandelbrot-simd-rs.git
+[submodule "examples/Stockfish"]
+	path = examples/Stockfish
+	url = https://github.com/official-stockfish/Stockfish.git
+[submodule "examples/dynamic_website/json"]
+	path = examples/dynamic_website/json
+	url = https://github.com/nlohmann/json.git
