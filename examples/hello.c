@@ -21,11 +21,31 @@ extern void my_backend(const char *arg)
 	backend_response(ctype, sizeof(ctype)-1, result, rlen-1);
 }
 
-__attribute__((used))
-extern void my_post_backend(const char *arg, void *data, size_t len)
+extern void __attribute__((used))
+my_post_backend(const char *arg, void *data, size_t len)
 {
 	const char ctype[] = "text/plain";
 	backend_response(ctype, sizeof(ctype)-1, data, len);
+}
+
+char* gdata = NULL;
+
+extern long __attribute__((used))
+my_streaming_function(void *data, size_t len, size_t processed, int last)
+{
+	gdata = realloc(gdata, processed + len);
+	memcpy(&gdata[processed], data, len);
+	return len; /* Required */
+}
+extern void __attribute__((used))
+my_streaming_response(const char *arg, size_t len)
+{
+	char result[512];
+	int bytes = snprintf(result, sizeof(result),
+		"Streaming ended, len=%zu", len);
+
+	const char ctype[] = "text/plain";
+	backend_response(ctype, sizeof(ctype)-1, gdata, len);
 }
 
 static int counter = 0;
