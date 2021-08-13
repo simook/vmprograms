@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <malloc.h>
 #include <stdio.h>
-static void *my_storage(void*, size_t, size_t);
+static void my_storage(void*, size_t, size_t);
 
 int main(int argc, char **argv)
 {
@@ -49,7 +49,7 @@ my_streaming_response(const char *arg, size_t len)
 }
 
 static int counter = 0;
-void* my_storage(void *data, size_t len, size_t reslen)
+void my_storage(void *data, size_t len, size_t reslen)
 {
 	counter ++;
 	((char *)data)[11] = '0' + (counter % 10);
