@@ -3,17 +3,21 @@
 #include <vector>
 
 struct Backend {
-	__attribute__((noreturn))
 	static void response(const std::string& ctype, const std::string& content)
 	{
 		backend_response(ctype.c_str(), ctype.size(), content.c_str(), content.size());
 		__builtin_unreachable();
 	}
 
-	__attribute__((noreturn))
 	static void response(const std::string& ctype, const std::vector<uint8_t>& content)
 	{
 		backend_response(ctype.c_str(), ctype.size(), content.data(), content.size());
+		__builtin_unreachable();
+	}
+
+	static void response(const std::string& ctype, const void* data, size_t len)
+	{
+		backend_response(ctype.c_str(), ctype.size(), data, len);
 		__builtin_unreachable();
 	}
 };
