@@ -16,16 +16,15 @@ void my_backend(const char *arg)
 {
 	const std::string path {arg};
 	if (path == "/" || path == "/w") {
-		Backend::response("text/html", index_html, index_html_size);
+		Backend::response(200, "text/html", index_html, index_html_size);
 	} else if (path == "/w/get") {
 		/* Call 'retrieve_json' in storage and retrieve result */
 		long len = Storage::call(retrieve_json, result);
 		result.resize(len);
 		/* Ship the result on the wire */
-		Backend::response("text/plain", result);
+		Backend::response(200, "text/plain", result);
 	}
-	/* TODO: 404 mechanism here */
-	Backend::response("text/plain", "Unknown location");
+	Backend::response(404, "text/plain", "Unknown location");
 }
 
 extern "C" __attribute__((used))
@@ -34,7 +33,7 @@ void my_post_backend(const char* /* arg */, void* data, size_t len)
 	size_t reslen = Storage::call(set_json, data, len, result);
 	result.resize(reslen);
 
-	Backend::response("text/plain", result);
+	Backend::response(201, "text/plain", result);
 }
 
 #include <nlohmann/json.hpp>
