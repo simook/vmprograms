@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+	<meta charset="utf-8">
+	<title>Say something with a stateful Varnish program</title>
+	<style type="text/css" media="screen">
+		body {
+			background: white;
+		}
+	    #resultbox {
+			height: 360px;
+            display: block;
+	    }
+		#whatchasay {
+			color: black;
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<div id="content">
+		<label for="resultbox">History:</label>
+		<textarea id="resultbox" rows="8" cols="80">
+		</textarea>
+        <hr/>
+        <input type="text" id="whatchasay" name="whatchasay">
+		<button type="button" id="say_button"> > Say it < </button>
+	</div>
+	<hr />
+	<div id="about">
+		Code is executed by tinyKVM inside the KVM Varnish VMOD.
+	</div>
+</body>
+
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js">
+	</script>
+	<script type="text/javascript">
+        var resultbox = jQuery('#resultbox');
+        function update_history() {
+            $.ajax({
+                url: `${location.protocol}//${location.host}/w/get`,
+                type: "GET",
+                crossDomain: true,
+                success: function (response, status, xhdr) {
+                    resultbox.val(response);
+                },
+                error: function (xhdr, status) {
+                    resultbox.val("Could not fetch history");
+                }
+            })
+        }
+        function make_history(text) {
+            var json = JSON.stringify({
+                text: text,
+                hmm: "hmm"
+            })
+            $.ajax({
+                url: `${location.protocol}//${location.host}/w`,
+                type: "POST",
+                crossDomain: true,
+                data: json,
+                dataType: 'text',
+                success: function (response, status, xhdr) {
+                    resultbox.val(response);
+                    //$('#exit_status').text(xhdr.getResponseHeader('X-Exit-Code'));
+                },
+                error: function (xhdr, status) {
+                    resultbox.val("Could not post history");
+                }
+            })
+        }
+
+		jQuery(document).ready(function()
+		{
+            update_history();
+            // Get button by id
+            var button = jQuery('#say_button');
+			var textbox = jQuery('#whatchasay');
+            button.bind('click', function ()
+			{
+                make_history(textbox.val())
+			}); // button click
+		}); // ready
+	</script>
+</html>

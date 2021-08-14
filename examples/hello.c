@@ -18,14 +18,15 @@ extern void my_backend(const char *arg)
 		storage_call(my_storage, data, sizeof(data), result, sizeof(result));
 
 	const char ctype[] = "text/plain";
-	backend_response(ctype, sizeof(ctype)-1, result, rlen-1);
+	backend_response(200, ctype, sizeof(ctype)-1, result, rlen-1);
+	//backend_response(404, NULL, 0, NULL, 0);
 }
 
 extern void __attribute__((used))
 my_post_backend(const char *arg, void *data, size_t len)
 {
 	const char ctype[] = "text/plain";
-	backend_response(ctype, sizeof(ctype)-1, data, len);
+	backend_response(201, ctype, sizeof(ctype)-1, data, len);
 }
 
 char* gdata = NULL;
@@ -45,7 +46,7 @@ my_streaming_response(const char *arg, size_t len)
 		"Streaming ended, len=%zu", len);
 
 	const char ctype[] = "text/plain";
-	backend_response(ctype, sizeof(ctype)-1, gdata, len);
+	backend_response(201, ctype, sizeof(ctype)-1, gdata, len);
 }
 
 static int counter = 0;

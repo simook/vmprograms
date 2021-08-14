@@ -27,7 +27,7 @@ asm(".global storage_return\n" \
 
 /* Use this to create a backend response from a KVM backend */
 extern void __attribute__((noreturn))
-backend_response(const void *t, uint64_t, const void *c, uint64_t);
+backend_response(int16_t status, const void *t, uint64_t, const void *c, uint64_t);
 
 /* Use this to make a serialized call into the storage VM */
 typedef void (*storage_func) (void* data, size_t len, size_t res);
@@ -36,9 +36,9 @@ storage_call(storage_func, const void* src, size_t, void* dst, size_t);
 extern void storage_return(const void* data, size_t len);
 
 static inline
-void backend_response_str(const char *ctype, const char *content)
+void backend_response_str(int16_t status, const char *ctype, const char *content)
 {
-	backend_response(ctype, strlen(ctype), content, strlen(content));
+	backend_response(status, ctype, strlen(ctype), content, strlen(content));
 }
 
 /* This cannot be used when KVM is used as a backend */
