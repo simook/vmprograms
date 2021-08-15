@@ -1,3 +1,5 @@
+#pragma once
+#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -19,6 +21,13 @@ asm(".global storage_call\n" \
 "	out %eax, $0\n" \
 "   ret\n");
 
+asm(".global storage_callv\n" \
+".type storage_callv, function\n" \
+"storage_callv:\n" \
+"	mov $0x10708, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
 asm(".global storage_return\n" \
 ".type storage_return, function\n" \
 "storage_return:\n" \
@@ -31,17 +40,27 @@ asm(".global storage_return\n" \
 extern void __attribute__((noreturn))
 backend_response(int16_t status, const void *t, uint64_t, const void *c, uint64_t);
 
-/* Use this to make a serialized call into the storage VM */
-typedef void (*storage_func) (void* data, size_t len, size_t res);
-extern long
-storage_call(storage_func, const void* src, size_t, void* dst, size_t);
-extern void storage_return(const void* data, size_t len);
-
 static inline
 void backend_response_str(int16_t status, const char *ctype, const char *content)
 {
 	backend_response(status, ctype, strlen(ctype), content, strlen(content));
 }
+
+/* Vector-based serialized call into storage VM */
+struct virtbuffer {
+	const void *addr;
+	size_t len;
+};
+typedef void (*storage_func) (size_t n, struct virtbuffer[n], size_t res);
+
+extern long
+storage_call(storage_func, const void* src, size_t, void* dst, size_t);
+
+extern long
+storage_callv(storage_func, size_t n, const struct virtbuffer[n], void* dst, size_t);
+
+extern void
+storage_return(const void* data, size_t len);
 
 /* This cannot be used when KVM is used as a backend */
 #ifndef KVM_API_ALREADY_DEFINED

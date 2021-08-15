@@ -146,25 +146,15 @@ my_post_backend(const char *arg, void *data, size_t len)
     backend_response_str(404, "text/html", "Not found");
 }
 
-struct storage_data {
-    size_t funclen;
-    char   func[256];
-    size_t datalen;
-    char data[0];
-};
-
-static void storage_trampoline(void *data, size_t len, size_t reslen)
+static void storage_trampoline(
+    size_t n, struct virtbuffer buffers[n], size_t reslen)
 {
-    assert(len >= sizeof(struct storage_data));
-    struct storage_data *sd = (struct storage_data *)data;
-    assert(len == sizeof(struct storage_data) + sd->datalen);
-
     JSValue sfunc =
-		JS_GetPropertyStr(g_ctx, global_obj, sd->func);
+		JS_GetPropertyStr(g_ctx, global_obj, buffers[0].addr);
 	assert(JS_IsFunction(g_ctx, sfunc));
 
     JSValueConst argv[1];
-    argv[0] = JS_NewStringLen(g_ctx, sd->data, sd->datalen);
+    argv[0] = JS_NewStringLen(g_ctx, buffers[1].addr, buffers[1].len);
 
     JSValue ret = JS_Call(g_ctx,
         sfunc,
@@ -197,19 +187,15 @@ JSValue js_storage_call(JSContext *ctx,
 		if (__builtin_expect(!func || !data, 0))
 	        return JS_EXCEPTION;
 
-        const size_t sdlen = sizeof(struct storage_data) + datalen;
-        struct storage_data *sd = (struct storage_data *)malloc(sdlen);
-        assert(sd);
-        sd->funclen = funclen;
-        memcpy(sd->func, func, funclen);
-        sd->func[funclen] = 0;
-        sd->datalen = datalen;
-        memcpy(sd->data, data, datalen);
+        struct virtbuffer buffers[2] = {
+            {.addr = func, .len = funclen+1},
+            {.addr = data, .len = datalen}
+        };
+        char result[4096];
 
 		/* Make call into storage VM */
-        char result[16384];
-		long reslen = storage_call(storage_trampoline,
-            sd, sdlen, result, sizeof(result));
+		long reslen = storage_callv(storage_trampoline,
+            2, buffers, result, sizeof(result));
 
         /* Create a JS string from the result */
         return JS_NewStringLen(g_ctx, result, reslen);
