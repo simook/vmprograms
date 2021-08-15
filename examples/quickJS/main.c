@@ -5,10 +5,9 @@
 #include "quickjs/quickjs.h"
 #include "quickjs/quickjs-libc.h"
 #define COUNTOF(a)  (sizeof(a) / sizeof(*(a)))
-void dlopen() {}
-void dlsym() {}
-void dlclose() {}
+void dlopen() {}; void dlsym() {}; void dlclose() {} /* Don't ask */
 static JSValue js_backend_response(JSContext*, JSValueConst, int, JSValueConst*);
+static JSValue js_storage_call(JSContext*, JSValueConst, int, JSValueConst*);
 
 static int eval_buf(JSContext *ctx, const void *buf, int buf_len,
                     const char *filename, int eval_flags)
@@ -46,6 +45,7 @@ JSContext *g_ctx;
 struct {
 	JSValue varnish;
 	JSValue backend_func;
+    JSValue post_backend_func;
     JSValue storage_get;
     JSValue storage_write;
 } vapi;
@@ -71,6 +71,9 @@ int main(int argc, char** argv)
 	JS_SetPropertyStr(g_ctx, vapi.varnish,
 		"response",
 		JS_NewCFunction(g_ctx, js_backend_response, "response", 3));
+    JS_SetPropertyStr(g_ctx, vapi.varnish,
+		"storage",
+		JS_NewCFunction(g_ctx, js_storage_call, "storage", 2));
 	/*** End Of VARNISH API ***/
 
 	const char *str = "import * as std from 'std';\n"
@@ -84,12 +87,9 @@ int main(int argc, char** argv)
 	vapi.backend_func =
 		JS_GetPropertyStr(g_ctx, global_obj, "my_backend");
 	assert(JS_IsFunction(g_ctx, vapi.backend_func));
-    vapi.storage_get =
-		JS_GetPropertyStr(g_ctx, global_obj, "get_storage");
-	assert(JS_IsFunction(g_ctx, vapi.storage_get));
-    vapi.storage_write =
-		JS_GetPropertyStr(g_ctx, global_obj, "my_storage");
-	assert(JS_IsFunction(g_ctx, vapi.storage_write));
+    vapi.post_backend_func =
+		JS_GetPropertyStr(g_ctx, global_obj, "my_post_backend");
+	assert(JS_IsFunction(g_ctx, vapi.post_backend_func));
     JS_SetPropertyStr(g_ctx, global_obj,
 		"index_html",
 		JS_NewStringLen(g_ctx, index_html, index_html_size));
@@ -117,90 +117,100 @@ JSValue js_backend_response(JSContext *ctx,
 	return JS_UNDEFINED;
 }
 
-static void retrieve_json(void*, size_t, size_t);
-static void set_json(void*, size_t, size_t);
-
 extern void __attribute__((used))
 my_backend(const char *arg)
 {
-    if (strcmp(arg, "/j") == 0)
-    {
-    	JSValueConst argv[1];
-    	argv[0] = JS_NewString(g_ctx, arg);
+	JSValueConst argv[1];
+	argv[0] = JS_NewString(g_ctx, arg);
 
-    	JSValue ret = JS_Call(
-    		g_ctx,
-    		vapi.backend_func,
-    		JS_UNDEFINED,
-    		countof(argv), argv
-    	);
-        goto not_found;
-    }
-    else if (strcmp(arg, "/j/get") == 0)
-    {
-        /* Call 'retrieve_json' in storage and retrieve result */
-        char result[4096];
-		long len =
-            storage_call(retrieve_json, NULL, 0, result, sizeof(result));
-        result[len] = 0;
-		/* Ship the result on the wire */
-		backend_response_str(200, "text/plain", result);
-    }
-not_found:
+	JS_Call(g_ctx,
+		vapi.backend_func,
+		JS_UNDEFINED,
+		countof(argv), argv
+	);
     backend_response_str(404, "text/html", "Not found");
 }
 
 extern void __attribute__((used))
 my_post_backend(const char *arg, void *data, size_t len)
 {
-    char result[4096];
-	size_t reslen = storage_call(set_json, data, len, result, sizeof(result));
+    JSValueConst argv[2];
+	argv[0] = JS_NewString(g_ctx, arg);
+    argv[1] = JS_NewStringLen(g_ctx, data, len);
 
-    const char ctype[] = "text/plain";
-	backend_response(201, ctype, sizeof(ctype)-1, result, reslen);
+	JS_Call(g_ctx,
+		vapi.post_backend_func,
+		JS_UNDEFINED,
+		countof(argv), argv
+	);
+    backend_response_str(404, "text/html", "Not found");
 }
 
-void set_json(void *data, size_t len, size_t reslen)
+struct storage_data {
+    size_t funclen;
+    char   func[256];
+    size_t datalen;
+    char data[0];
+};
+
+static void storage_trampoline(void *data, size_t len, size_t reslen)
 {
-    (void) reslen;
+    assert(len >= sizeof(struct storage_data));
+    struct storage_data *sd = (struct storage_data *)data;
+    assert(len == sizeof(struct storage_data) + sd->datalen);
+
+    JSValue sfunc =
+		JS_GetPropertyStr(g_ctx, global_obj, sd->func);
+	assert(JS_IsFunction(g_ctx, sfunc));
 
     JSValueConst argv[1];
-    argv[0] = JS_NewStringLen(g_ctx, data, len);
+    argv[0] = JS_NewStringLen(g_ctx, sd->data, sd->datalen);
 
-    JSValue ret = JS_Call(
-        g_ctx,
-        vapi.storage_write,
-        global_obj,
+    JSValue ret = JS_Call(g_ctx,
+        sfunc,
+        JS_UNDEFINED,
         countof(argv), argv
     );
 
-    //assert(JS_IsString(ret));
     size_t textlen;
     const char *text =
         JS_ToCStringLen(g_ctx, &textlen, ret);
+    assert(textlen <= reslen);
 	storage_return(text, textlen);
     /* Cleanup */
     JS_FreeValue(g_ctx, ret);
 }
 
-void retrieve_json(void *data, size_t size, size_t reslen)
+JSValue js_storage_call(JSContext *ctx,
+	JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    (void) data;
-    (void) size;
-    (void) reslen;
+	(void)this_val;
+	if (argc == 2) {
+		size_t funclen;
+		const char* func =
+			JS_ToCStringLen(ctx, &funclen, argv[0]);
+		size_t datalen;
+		const char* data =
+			JS_ToCStringLen(ctx, &datalen, argv[1]);
+		if (!func || !data)
+	        return JS_EXCEPTION;
 
-    JSValue ret = JS_Call(
-        g_ctx,
-        vapi.storage_get,
-        global_obj,
-        0, NULL
-    );
+        const size_t sdlen = sizeof(struct storage_data) + datalen;
+        struct storage_data *sd = (struct storage_data *)malloc(sdlen);
+        assert(sd);
+        sd->funclen = funclen;
+        memcpy(sd->func, func, funclen);
+        sd->func[funclen] = 0;
+        sd->datalen = datalen;
+        memcpy(sd->data, data, datalen);
 
-    //assert(JS_IsString(ret));
-    size_t textlen;
-    const char *text =
-        JS_ToCStringLen(g_ctx, &textlen, ret);
-	storage_return(text, textlen);
-    /* Cleanup */
-    JS_FreeValue(g_ctx, ret);
+		/* Make call into storage VM */
+        char result[16384];
+		long reslen = storage_call(storage_trampoline,
+            sd, sdlen, result, sizeof(result));
+
+        /* Create a JS string from the result */
+        return JS_NewStringLen(g_ctx, result, reslen);
+	}
+	return JS_EXCEPTION;
 }
