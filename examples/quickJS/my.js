@@ -5,7 +5,8 @@
 	- varnish.response(code, content_type, content)
 
 	Call a function in serialized stateful storage with
-	data as argument, and get a return value back:
+	data as optional argument, and get a return value back:
+	- result = varnish.storage("storage_function")
 	- result = varnish.storage("storage_function", data)
 
 	Logging and errors will show up in VSL.
@@ -19,7 +20,7 @@ function my_backend(path)
 			"text/html", index_html);
 	} else if (path == "/j/get") {
 		varnish.response(200,
-			"text/plain", varnish.storage("get_storage", ""));
+			"text/plain", varnish.storage("get_storage"));
 	}
 }
 

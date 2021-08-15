@@ -185,14 +185,16 @@ JSValue js_storage_call(JSContext *ctx,
 	JSValueConst this_val, int argc, JSValueConst *argv)
 {
 	(void)this_val;
-	if (argc == 2) {
+	if (argc >= 1) {
 		size_t funclen;
 		const char* func =
 			JS_ToCStringLen(ctx, &funclen, argv[0]);
-		size_t datalen;
-		const char* data =
-			JS_ToCStringLen(ctx, &datalen, argv[1]);
-		if (!func || !data)
+		size_t datalen = 0;
+		const char* data = "";
+        if (argc >= 2) {
+            data = JS_ToCStringLen(ctx, &datalen, argv[1]);
+        }
+		if (__builtin_expect(!func || !data, 0))
 	        return JS_EXCEPTION;
 
         const size_t sdlen = sizeof(struct storage_data) + datalen;
