@@ -39,12 +39,15 @@ static int eval_buf(JSContext *ctx, const void *buf, int buf_len,
 }
 
 EMBED_BINARY(myjs, "../my.js");
+EMBED_BINARY(index_html, "../index.html")
 
 JSValue global_obj;
 JSContext *g_ctx;
 struct {
 	JSValue varnish;
 	JSValue backend_func;
+    JSValue storage_get;
+    JSValue storage_write;
 } vapi;
 
 int main(int argc, char** argv)
@@ -81,6 +84,15 @@ int main(int argc, char** argv)
 	vapi.backend_func =
 		JS_GetPropertyStr(g_ctx, global_obj, "my_backend");
 	assert(JS_IsFunction(g_ctx, vapi.backend_func));
+    vapi.storage_get =
+		JS_GetPropertyStr(g_ctx, global_obj, "get_storage");
+	assert(JS_IsFunction(g_ctx, vapi.storage_get));
+    vapi.storage_write =
+		JS_GetPropertyStr(g_ctx, global_obj, "my_storage");
+	assert(JS_IsFunction(g_ctx, vapi.storage_write));
+    JS_SetPropertyStr(g_ctx, global_obj,
+		"index_html",
+		JS_NewStringLen(g_ctx, index_html, index_html_size));
 }
 
 JSValue js_backend_response(JSContext *ctx,
@@ -105,19 +117,90 @@ JSValue js_backend_response(JSContext *ctx,
 	return JS_UNDEFINED;
 }
 
+static void retrieve_json(void*, size_t, size_t);
+static void set_json(void*, size_t, size_t);
+
 extern void __attribute__((used))
 my_backend(const char *arg)
 {
-	JSValueConst argv[1];
-	argv[0] = JS_NewString(g_ctx, arg);
+    if (strcmp(arg, "/j") == 0)
+    {
+    	JSValueConst argv[1];
+    	argv[0] = JS_NewString(g_ctx, arg);
 
-	JSValue ret = JS_Call(
-		g_ctx,
-		vapi.backend_func,
-		JS_UNDEFINED,
-		countof(argv), argv
-	);
-	if (JS_IsArray(g_ctx, ret)) {
+    	JSValue ret = JS_Call(
+    		g_ctx,
+    		vapi.backend_func,
+    		JS_UNDEFINED,
+    		countof(argv), argv
+    	);
+        goto not_found;
+    }
+    else if (strcmp(arg, "/j/get") == 0)
+    {
+        /* Call 'retrieve_json' in storage and retrieve result */
+        char result[4096];
+		long len =
+            storage_call(retrieve_json, NULL, 0, result, sizeof(result));
+        result[len] = 0;
+		/* Ship the result on the wire */
+		backend_response_str(200, "text/plain", result);
+    }
+not_found:
+    backend_response_str(404, "text/html", "Not found");
+}
 
-	}
+extern void __attribute__((used))
+my_post_backend(const char *arg, void *data, size_t len)
+{
+    char result[4096];
+	size_t reslen = storage_call(set_json, data, len, result, sizeof(result));
+
+    const char ctype[] = "text/plain";
+	backend_response(201, ctype, sizeof(ctype)-1, result, reslen);
+}
+
+void set_json(void *data, size_t len, size_t reslen)
+{
+    (void) reslen;
+
+    JSValueConst argv[1];
+    argv[0] = JS_NewStringLen(g_ctx, data, len);
+
+    JSValue ret = JS_Call(
+        g_ctx,
+        vapi.storage_write,
+        global_obj,
+        countof(argv), argv
+    );
+
+    //assert(JS_IsString(ret));
+    size_t textlen;
+    const char *text =
+        JS_ToCStringLen(g_ctx, &textlen, ret);
+	storage_return(text, textlen);
+    /* Cleanup */
+    JS_FreeValue(g_ctx, ret);
+}
+
+void retrieve_json(void *data, size_t size, size_t reslen)
+{
+    (void) data;
+    (void) size;
+    (void) reslen;
+
+    JSValue ret = JS_Call(
+        g_ctx,
+        vapi.storage_get,
+        global_obj,
+        0, NULL
+    );
+
+    //assert(JS_IsString(ret));
+    size_t textlen;
+    const char *text =
+        JS_ToCStringLen(g_ctx, &textlen, ret);
+	storage_return(text, textlen);
+    /* Cleanup */
+    JS_FreeValue(g_ctx, ret);
 }

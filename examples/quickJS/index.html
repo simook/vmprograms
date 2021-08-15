@@ -38,7 +38,7 @@
         var resultbox = jQuery('#resultbox');
         function update_history() {
             $.ajax({
-                url: `${location.protocol}//${location.host}/w/get`,
+                url: `${location.protocol}//${location.host}/j/get`,
                 type: "GET",
                 crossDomain: true,
                 success: function (response, status, xhdr) {
@@ -55,7 +55,7 @@
                 hmm: "hmm"
             })
             $.ajax({
-                url: `${location.protocol}//${location.host}/w`,
+                url: `${location.protocol}//${location.host}/j`,
                 type: "POST",
                 crossDomain: true,
                 data: json,
