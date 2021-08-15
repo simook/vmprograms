@@ -1,8 +1,10 @@
 #include "varnish_api.hpp"
 
 #include <cstdio>
-extern "C" void retrieve_json(void*, size_t, size_t);
-extern "C" void set_json(void*, size_t, size_t);
+extern "C" {
+	static void retrieve_json(void*, size_t, size_t);
+	static void set_json(void*, size_t, size_t);
+}
 EMBED_BINARY(index_html, "../index.html")
 
 int main() {
