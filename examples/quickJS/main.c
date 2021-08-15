@@ -38,7 +38,6 @@ static int eval_buf(JSContext *ctx, const void *buf, int buf_len,
 }
 
 EMBED_BINARY(myjs, "../my.js");
-EMBED_BINARY(index_html, "../index.html")
 
 JSValue global_obj;
 JSContext *g_ctx;
@@ -90,9 +89,6 @@ int main(int argc, char** argv)
     vapi.post_backend_func =
 		JS_GetPropertyStr(g_ctx, global_obj, "my_post_backend");
 	assert(JS_IsFunction(g_ctx, vapi.post_backend_func));
-    JS_SetPropertyStr(g_ctx, global_obj,
-		"index_html",
-		JS_NewStringLen(g_ctx, index_html, index_html_size));
 }
 
 JSValue js_backend_response(JSContext *ctx,
@@ -120,6 +116,10 @@ JSValue js_backend_response(JSContext *ctx,
 extern void __attribute__((used))
 my_backend(const char *arg)
 {
+    /* Resources in the www folder first */
+    extern void static_site(const char*);
+    static_site(arg);
+    /* Then call into JS */
 	JSValueConst argv[1];
 	argv[0] = JS_NewString(g_ctx, arg);
 

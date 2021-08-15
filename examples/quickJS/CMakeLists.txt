@@ -5,6 +5,7 @@ set(CMAKE_C_FLAGS "-Wall -Wextra -std=gnu11 -O2 -g")
 
 set(SOURCES
 	main.c
+	static_site.c
 )
 
 add_executable(jsapp ${SOURCES})

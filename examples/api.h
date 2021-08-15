@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#ifndef KVM_API_ALREADY_DEFINED
 asm(".global backend_response\n" \
 ".type backend_response, function\n" \
 "backend_response:\n" \
@@ -24,6 +25,7 @@ asm(".global storage_return\n" \
 "	mov $0xFFFF, %eax\n" \
 "	out %eax, $0\n" \
 "   ret\n");
+#endif
 
 /* Use this to create a backend response from a KVM backend */
 extern void __attribute__((noreturn))
@@ -42,6 +44,7 @@ void backend_response_str(int16_t status, const char *ctype, const char *content
 }
 
 /* This cannot be used when KVM is used as a backend */
+#ifndef KVM_API_ALREADY_DEFINED
 #define DYNAMIC_CALL(name, hash) \
 	asm(".global " #name "\n" \
 	#name ":\n" \
@@ -49,6 +52,10 @@ void backend_response_str(int16_t status, const char *ctype, const char *content
 	"	out %eax, $1\n" \
 	"   ret\n"); \
 	extern long name();
+#else
+#define DYNAMIC_CALL(name, hash) \
+	extern long name();
+#endif
 DYNAMIC_CALL(goto_dns, 0x746238D2)
 
 /* Embed binary data into executable */
