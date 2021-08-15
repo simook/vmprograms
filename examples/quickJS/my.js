@@ -1,5 +1,14 @@
 /*
 	QuickJS inside Varnish
+
+	Write a response back to client and dissolve VM:
+	- varnish.response(code, content_type, content)
+
+	Call a function in serialized stateful storage with
+	data as argument, and get a return value back:
+	- result = varnish.storage("storage_function", data)
+
+	Logging and errors will show up in VSL.
 */
 console.log("Hello QuickJS World");
 
