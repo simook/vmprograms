@@ -150,11 +150,11 @@ static void storage_trampoline(
     size_t n, struct virtbuffer buffers[n], size_t reslen)
 {
     JSValue sfunc =
-		JS_GetPropertyStr(g_ctx, global_obj, buffers[0].addr);
+		JS_GetPropertyStr(g_ctx, global_obj, buffers[0].data);
 	assert(JS_IsFunction(g_ctx, sfunc));
 
     JSValueConst argv[1];
-    argv[0] = JS_NewStringLen(g_ctx, buffers[1].addr, buffers[1].len);
+    argv[0] = JS_NewStringLen(g_ctx, buffers[1].data, buffers[1].len);
 
     JSValue ret = JS_Call(g_ctx,
         sfunc,
@@ -187,9 +187,9 @@ JSValue js_storage_call(JSContext *ctx,
 		if (__builtin_expect(!func || !data, 0))
 	        return JS_EXCEPTION;
 
-        struct virtbuffer buffers[2] = {
-            {.addr = func, .len = funclen+1},
-            {.addr = data, .len = datalen}
+        const struct virtbuffer buffers[2] = {
+            {TRUST_ME(func), funclen+1},
+            {TRUST_ME(data), datalen}
         };
         char result[4096];
 

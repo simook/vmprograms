@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <malloc.h>
 #include <stdio.h>
-static void my_storage(void*, size_t, size_t);
+static void my_storage(size_t n, struct virtbuffer[n], size_t);
 
 int main(int argc, char **argv)
 {
@@ -50,12 +50,13 @@ my_streaming_response(const char *arg, size_t len)
 }
 
 static int counter = 0;
-void my_storage(void *data, size_t len, size_t reslen)
+void my_storage(size_t n, struct virtbuffer buffers[n], size_t reslen)
 {
+	struct virtbuffer *hello_string = &buffers[0];
 	counter ++;
-	((char *)data)[11] = '0' + (counter % 10);
+	((char *)hello_string->data)[11] = '0' + (counter % 10);
 	/* Data contains the inputs */
-	storage_return(data, len);
+	storage_return(hello_string->data, hello_string->len);
 }
 
 __attribute__((used))

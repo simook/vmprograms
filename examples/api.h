@@ -48,7 +48,7 @@ void backend_response_str(int16_t status, const char *ctype, const char *content
 
 /* Vector-based serialized call into storage VM */
 struct virtbuffer {
-	const void *addr;
+	void  *data;
 	size_t len;
 };
 typedef void (*storage_func) (size_t n, struct virtbuffer[n], size_t res);
@@ -92,6 +92,8 @@ DYNAMIC_CALL(goto_dns, 0x746238D2)
 	".section .text"); \
 	extern char name[]; \
 	extern unsigned name ##_size;
+
+#define TRUST_ME(ptr)    ((void*)(uintptr_t)(ptr))
 
 #ifdef __cplusplus
 }
