@@ -23,8 +23,6 @@ struct Backend {
 };
 
 struct Storage {
-	using storage_func = void (*)(void*, size_t, size_t);
-
 	static size_t call(storage_func func, std::string& str) {
 		return storage_call(func, nullptr, 0, str.data(), str.size());
 	}

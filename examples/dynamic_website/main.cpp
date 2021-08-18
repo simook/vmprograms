@@ -2,8 +2,8 @@
 
 #include <cstdio>
 extern "C" {
-	static void retrieve_json(void*, size_t, size_t);
-	static void set_json(void*, size_t, size_t);
+	static void retrieve_json(size_t, virtbuffer[], size_t);
+	static void set_json(size_t, virtbuffer[], size_t);
 }
 EMBED_BINARY(index_html, "../index.html")
 
@@ -42,15 +42,15 @@ void my_post_backend(const char* /* arg */, void* data, size_t len)
 using json = nlohmann::json;
 std::string text;
 
-void retrieve_json(void*, size_t, size_t /* reslen */)
+void retrieve_json(size_t n, virtbuffer buffers[n], size_t)
 {
 	Storage::response(text);
 }
 
-void set_json(void* data, size_t len, size_t /* reslen */)
+void set_json(size_t n, virtbuffer buffers[n], size_t)
 {
-	const uint8_t* data_begin = (uint8_t*)data;
-	const uint8_t* data_end   = data_begin + len;
+	const uint8_t* data_begin = (uint8_t*)buffers[0].data;
+	const uint8_t* data_end   = data_begin + buffers[0].len;
 
 	json j = json::parse(data_begin, data_end);
 	text += j["text"].get<std::string>() + "\n";
