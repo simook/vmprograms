@@ -43,3 +43,13 @@ function set_storage(data)
 	text += json["text"] + "\n";
 	return text;
 }
+
+/* Keep the program state during updates */
+function on_live_update()
+{
+	return text;
+}
+function on_resume_update(new_text)
+{
+	text = new_text;
+}
