@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 mkdir -p build
-python static_builder.py www build/static_site.c
+python3 static_builder.py www build/static_site.c
 pushd build
 ln -fs ../../api.h api.h
 ln -fs ../crc32.h  crc32.h
