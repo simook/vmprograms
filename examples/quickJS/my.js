@@ -13,6 +13,8 @@
 */
 console.log("Hello QuickJS World");
 
+var text = "";
+
 function my_backend(path)
 {
 	if (path == "/" || path == "/j") {
@@ -20,17 +22,15 @@ function my_backend(path)
 			"text/html", index_html);
 	} else if (path == "/j/get") {
 		varnish.response(200,
-			"text/plain", varnish.storage("get_storage"));
+			"text/plain", text);
 	}
 }
 
 function my_post_backend(path, data)
 {
-	varnish.response(200,
+	varnish.response(201,
 		"text/plain", varnish.storage("set_storage", data));
 }
-
-var text = "";
 
 function get_storage()
 {
@@ -40,7 +40,11 @@ function get_storage()
 function set_storage(data)
 {
 	var json = JSON.parse(data);
-	text += json["text"] + "\n";
+	/* Modify text (in storage) */
+	text += ">> " + json["text"] + "\n";
+	/* Clone this VM and make it handle requests */
+	varnish.vmcommit();
+	/* Finish the current request */
 	return text;
 }
 

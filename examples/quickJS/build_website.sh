@@ -9,4 +9,4 @@ ln -fs ../www  www
 cmake .. -G Ninja
 ninja -d explain
 popd
-bash ../../upload.sh build/jsapp jpizza.com
+time source ../../upload.sh build/jsapp jpizza.com

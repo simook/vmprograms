@@ -34,6 +34,13 @@ asm(".global storage_return\n" \
 "	mov $0xFFFF, %eax\n" \
 "	out %eax, $0\n" \
 "   ret\n");
+
+asm(".global vmcommit\n" \
+".type vmcommit, function\n" \
+"vmcommit:\n" \
+"	mov $0x1070A, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
 #endif
 
 /* Use this to create a backend response from a KVM backend */
@@ -59,8 +66,16 @@ storage_call(storage_func, const void* src, size_t, void* dst, size_t);
 extern long
 storage_callv(storage_func, size_t n, const struct virtbuffer[n], void* dst, size_t);
 
+/* Used to return from storage functions */
 extern void
 storage_return(const void* data, size_t len);
+
+static inline void
+storage_return_nothing(void) { storage_return(NULL, 0); }
+
+/* Record the current state into a new VM, and make that
+   VM handle future requests. WARNING: RCU, Racey */
+extern long vmcommit(void);
 
 /* This cannot be used when KVM is used as a backend */
 #ifndef KVM_API_ALREADY_DEFINED

@@ -8,6 +8,7 @@
 void dlopen() {}; void dlsym() {}; void dlclose() {} /* Don't ask */
 static JSValue js_backend_response(JSContext*, JSValueConst, int, JSValueConst*);
 static JSValue js_storage_call(JSContext*, JSValueConst, int, JSValueConst*);
+static JSValue js_vmcommit_call(JSContext*, JSValueConst, int, JSValueConst*);
 
 static int eval_buf(JSContext *ctx, const void *buf, int buf_len,
 					const char *filename, int eval_flags)
@@ -70,6 +71,9 @@ int main(int argc, char** argv)
 	JS_SetPropertyStr(g_ctx, vapi.varnish,
 		"response",
 		JS_NewCFunction(g_ctx, js_backend_response, "response", 3));
+	JS_SetPropertyStr(g_ctx, vapi.varnish,
+		"vmcommit",
+		JS_NewCFunction(g_ctx, js_vmcommit_call, "vmcommit", 0));
 	JS_SetPropertyStr(g_ctx, vapi.varnish,
 		"storage",
 		JS_NewCFunction(g_ctx, js_storage_call, "storage", 2));
@@ -169,6 +173,17 @@ static void storage_trampoline(
 	storage_return(text, textlen);
 	/* Cleanup */
 	JS_FreeValue(g_ctx, ret);
+}
+
+JSValue js_vmcommit_call(JSContext *ctx,
+	JSValueConst this_val, int argc, JSValueConst *argv)
+{
+	(void) ctx;
+	(void) this_val;
+	(void) argc;
+	(void) argv;
+	assert(vmcommit() == 0);
+	return JS_UNDEFINED;
 }
 
 JSValue js_storage_call(JSContext *ctx,

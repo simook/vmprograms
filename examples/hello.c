@@ -3,30 +3,35 @@
 #include <malloc.h>
 #include <stdio.h>
 static void my_storage(size_t n, struct virtbuffer[n], size_t);
+static void my_post_storage(size_t n, struct virtbuffer[n], size_t);
+
+static char data[6000];
+static int  datalen = 0;
 
 int main(int argc, char **argv)
 {
+	datalen = snprintf(data, sizeof(data),
+		"Hello World!");
 	printf("Hello from '%s'! Storage=%s\n", argv[1], argv[2]);
 }
 
 __attribute__((used))
 extern void my_backend(const char *arg)
 {
-	const char data[] = "Hello World!";
-	char result[256];
-	const long rlen =
-		storage_call(my_storage, data, sizeof(data), result, sizeof(result));
-
 	const char ctype[] = "text/plain";
-	backend_response(200, ctype, sizeof(ctype)-1, result, rlen-1);
+	backend_response(200, ctype, sizeof(ctype)-1, data, datalen);
 	//backend_response(404, NULL, 0, NULL, 0);
 }
 
 extern void __attribute__((used))
-my_post_backend(const char *arg, void *data, size_t len)
+my_post_backend(const char *arg, void *indata, size_t inlen)
 {
+	char result[sizeof(data)];
+	const long rlen =
+		storage_call(my_post_storage, indata, inlen, result, sizeof(result));
+
 	const char ctype[] = "text/plain";
-	backend_response(201, ctype, sizeof(ctype)-1, data, len);
+	backend_response(201, ctype, sizeof(ctype)-1, result, rlen);
 }
 
 char* gdata = NULL;
@@ -55,26 +60,40 @@ void my_storage(size_t n, struct virtbuffer buffers[n], size_t reslen)
 	struct virtbuffer *hello_string = &buffers[0];
 	counter ++;
 	((char *)hello_string->data)[11] = '0' + (counter % 10);
+
 	/* Data contains the inputs */
 	storage_return(hello_string->data, hello_string->len);
+}
+void my_post_storage(size_t n, struct virtbuffer buffers[n], size_t reslen)
+{
+	char* ptr = data;
+	datalen = 0;
+	for (size_t i = 0; i < n; i++) {
+		memcpy(ptr, buffers[0].data, buffers[0].len);
+		ptr += buffers[0].len;
+		datalen += buffers[0].len;
+	}
+
+	assert(vmcommit() == 0);
+
+	storage_return(data, datalen);
 }
 
 __attribute__((used))
 extern void on_live_update()
 {
 	/* Serialize data into ptr, len */
-	int *data = (int *)malloc(sizeof(counter));
-	*data = counter;
-	storage_return(data, sizeof(*data));
+	storage_return(data, datalen);
 }
 
 __attribute__((used))
 extern void on_resume_update(size_t len)
 {
-	assert(len == sizeof(counter));
+	assert(len < sizeof(data));
+	datalen = len;
 	/* Allocate room for state, return ptr, len */
-	storage_return(&counter, sizeof(counter));
+	storage_return(data, sizeof(data));
 
-	/* Restore state here */
-	printf("Counter state restored: %d\n", counter);
+	/* Do something with restored state here */
+	printf("Data state restored\n");
 }
