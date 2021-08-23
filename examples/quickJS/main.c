@@ -202,3 +202,52 @@ JSValue js_storage_call(JSContext *ctx,
 	}
 	return JS_EXCEPTION;
 }
+
+
+__attribute__((used))
+extern void on_live_update()
+{
+	JSValue sfunc =
+		JS_GetPropertyStr(g_ctx, global_obj, "on_live_update");
+	if (!JS_IsFunction(g_ctx, sfunc))
+		return;
+
+	JSValue ret = JS_Call(g_ctx,
+		sfunc,
+		JS_UNDEFINED,
+		0, NULL
+	);
+
+	size_t datalen;
+	const char *data =
+		JS_ToCStringLen(g_ctx, &datalen, ret);
+	storage_return(data, datalen);
+	/* Cleanup */
+	JS_FreeValue(g_ctx, ret);
+}
+
+__attribute__((used))
+extern void on_resume_update(size_t len)
+{
+	char* data = malloc(len);
+	storage_return(data, len);
+
+	JSValue sfunc =
+		JS_GetPropertyStr(g_ctx, global_obj, "on_resume_update");
+	if (!JS_IsFunction(g_ctx, sfunc))
+		return;
+
+	JSValueConst argv[1];
+	argv[0] = JS_NewStringLen(g_ctx, data, len);
+
+	free(data);
+
+	JSValue ret = JS_Call(g_ctx,
+		sfunc,
+		JS_UNDEFINED,
+		countof(argv), argv
+	);
+
+	/* Cleanup */
+	JS_FreeValue(g_ctx, ret);
+}
