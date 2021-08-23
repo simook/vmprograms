@@ -8,7 +8,10 @@
 void dlopen() {}; void dlsym() {}; void dlclose() {} /* Don't ask */
 static JSValue js_backend_response(JSContext*, JSValueConst, int, JSValueConst*);
 static JSValue js_storage_call(JSContext*, JSValueConst, int, JSValueConst*);
+static JSValue js_is_storage_call(JSContext*, JSValueConst, int, JSValueConst*);
 static JSValue js_vmcommit_call(JSContext*, JSValueConst, int, JSValueConst*);
+static JSValue js_sendfile_call(JSContext*, JSValueConst, int, JSValueConst*);
+extern void static_site(const char*);
 
 static int eval_buf(JSContext *ctx, const void *buf, int buf_len,
 					const char *filename, int eval_flags)
@@ -40,18 +43,20 @@ static int eval_buf(JSContext *ctx, const void *buf, int buf_len,
 
 EMBED_BINARY(myjs, "../my.js");
 
-JSValue global_obj;
-JSContext *g_ctx;
-struct {
+static JSValue global_obj;
+static JSContext *g_ctx;
+static struct {
 	JSValue varnish;
 	JSValue backend_func;
 	JSValue post_backend_func;
-	JSValue storage_get;
-	JSValue storage_write;
 } vapi;
 
+static int is_storage = 0;
 int main(int argc, char** argv)
 {
+	is_storage = (*argv[2] == '1');
+
+	/* QuickJS runtime */
 	JSRuntime *rt = JS_NewRuntime();
 	g_ctx = JS_NewContext(rt);
 
@@ -72,11 +77,17 @@ int main(int argc, char** argv)
 		"response",
 		JS_NewCFunction(g_ctx, js_backend_response, "response", 3));
 	JS_SetPropertyStr(g_ctx, vapi.varnish,
+		"sendfile",
+		JS_NewCFunction(g_ctx, js_sendfile_call, "sendfile", 1));
+	JS_SetPropertyStr(g_ctx, vapi.varnish,
 		"vmcommit",
 		JS_NewCFunction(g_ctx, js_vmcommit_call, "vmcommit", 0));
 	JS_SetPropertyStr(g_ctx, vapi.varnish,
 		"storage",
 		JS_NewCFunction(g_ctx, js_storage_call, "storage", 2));
+	JS_SetPropertyStr(g_ctx, vapi.varnish,
+		"is_storage",
+		JS_NewCFunction(g_ctx, js_is_storage_call, "is_storage", 0));
 	/*** End Of VARNISH API ***/
 
 	const char *str = "import * as std from 'std';\n"
@@ -114,15 +125,28 @@ JSValue js_backend_response(JSContext *ctx,
 		/* Give response to waiting clients */
 		backend_response(code, type, tlen, cont, clen);
 	}
-	return JS_UNDEFINED;
+	return JS_EXCEPTION;
+}
+
+JSValue js_sendfile_call(JSContext *ctx,
+	JSValueConst this_val, int argc, JSValueConst *argv)
+{
+	(void)this_val;
+	if (argc == 1) {
+		size_t flen;
+		const char* filename =
+			JS_ToCStringLen(ctx, &flen, argv[0]);
+		if (!filename)
+			return JS_EXCEPTION;
+		/* Send static resource (or 404) */
+		static_site(filename);
+	}
+	return JS_EXCEPTION;
 }
 
 extern void __attribute__((used))
 my_backend(const char *arg)
 {
-	/* Resources in the www folder first */
-	extern void static_site(const char*);
-	static_site(arg);
 	/* Then call into JS */
 	JSValueConst argv[1];
 	argv[0] = JS_NewString(g_ctx, arg);
@@ -175,17 +199,6 @@ static void storage_trampoline(
 	JS_FreeValue(g_ctx, ret);
 }
 
-JSValue js_vmcommit_call(JSContext *ctx,
-	JSValueConst this_val, int argc, JSValueConst *argv)
-{
-	(void) ctx;
-	(void) this_val;
-	(void) argc;
-	(void) argv;
-	assert(vmcommit() == 0);
-	return JS_UNDEFINED;
-}
-
 JSValue js_storage_call(JSContext *ctx,
 	JSValueConst this_val, int argc, JSValueConst *argv)
 {
@@ -216,6 +229,24 @@ JSValue js_storage_call(JSContext *ctx,
 		return JS_NewStringLen(g_ctx, result, reslen);
 	}
 	return JS_EXCEPTION;
+}
+
+JSValue js_is_storage_call(JSContext *ctx,
+	JSValueConst this_val, int argc, JSValueConst *argv)
+{
+	(void)this_val;
+	(void)argc;
+	(void)argv;
+	return JS_NewBool(ctx, is_storage);
+}
+
+JSValue js_vmcommit_call(JSContext *ctx,
+	JSValueConst this_val, int argc, JSValueConst *argv)
+{
+	(void) this_val;
+	(void) argc;
+	(void) argv;
+	return JS_NewBool(ctx, vmcommit() == 0);
 }
 
 __attribute__((used))

@@ -4,10 +4,19 @@
 	Write a response back to client and dissolve VM:
 	- varnish.response(code, content_type, content)
 
+	Send a resource back to client and dissolve VM:
+	- varnish.sendfile(path)
+
 	Call a function in serialized stateful storage with
 	data as optional argument, and get a return value back:
 	- result = varnish.storage("storage_function")
 	- result = varnish.storage("storage_function", data)
+
+	Check if we are currently in storage:
+	- result = varnish.is_storage()
+
+	Create a snapshot VM from this and base future requests on it:
+	- varnish.vmcommit()
 
 	Logging and errors will show up in VSL.
 */
@@ -18,32 +27,36 @@ var text = "";
 function my_backend(path)
 {
 	if (path == "/" || path == "/j") {
-		varnish.response(200,
-			"text/html", index_html);
+		varnish.sendfile("/index.html");
 	} else if (path == "/j/get") {
 		varnish.response(200,
 			"text/plain", text);
 	}
+	varnish.sendfile(path);
 }
 
 function my_post_backend(path, data)
 {
-	varnish.response(201,
-		"text/plain", varnish.storage("set_storage", data));
-}
+	/* Make a call into storage @set_storage with data as argument */
+	var result = varnish.storage("set_storage", data);
 
-function get_storage()
-{
-	return text;
+	/* The result is the updated text */
+	varnish.response(201,
+		"text/plain", result);
 }
 
 function set_storage(data)
 {
-	var json = JSON.parse(data);
+	/* We should be calling this function from storage */
+	console.assert(varnish.is_storage());
+
 	/* Modify text (in storage) */
+	var json = JSON.parse(data);
 	text += ">> " + json["text"] + "\n";
+
 	/* Clone this VM and make it handle requests */
 	varnish.vmcommit();
+
 	/* Finish the current request */
 	return text;
 }
