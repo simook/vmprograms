@@ -19,11 +19,18 @@
 	- varnish.vmcommit()
 
 	Logging and errors will show up in VSL.
+
+	scriptArgs[0] = "vmod_kvm"
+	scriptArgs[1] = "mydomain.com"
+	scriptArgs[2] = "0" (if request VM) or "1" (if storage VM)
+	scriptArgs[3] = "/path/to/state.file"
 */
+
+var state_file = scriptArgs[3]
 console.log("Hello QuickJS World");
 
 /* At the start we attempt to load previous text from disk */
-var text = std.loadFile("/tmp/jpizza.state");
+var text = std.loadFile(state_file);
 if (!text) text = "";
 
 function my_backend(path)
