@@ -99,6 +99,7 @@ DYNAMIC_CALL(goto_dns, 0x746238D2)
 	#name ":\n" \
 	"	.incbin " #filename "\n" \
 	#name "_end:\n" \
+	"	.int  0\n" \
 	"	.global " #name "_size\n" \
 	"	.type   " #name "_size, @object\n" \
 	"	.align 4\n" \

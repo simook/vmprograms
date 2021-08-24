@@ -22,7 +22,9 @@
 */
 console.log("Hello QuickJS World");
 
-var text = "";
+/* At the start we attempt to load previous text from disk */
+var text = std.loadFile("/tmp/jpizza.state");
+if (!text) text = "";
 
 function my_backend(path)
 {
@@ -48,11 +50,15 @@ function my_post_backend(path, data)
 function set_storage(data)
 {
 	/* We should be calling this function from storage */
-	console.assert(varnish.is_storage());
+//	console.assert(varnish.is_storage());
 
 	/* Modify text (in storage) */
 	var json = JSON.parse(data);
 	text += ">> " + json["text"] + "\n";
+
+	var file = std.open("/tmp/jpizza.state", "wb");
+	file.puts(text);
+	file.close();
 
 	/* Clone this VM and make it handle requests */
 	varnish.vmcommit();

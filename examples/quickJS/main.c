@@ -151,11 +151,14 @@ my_backend(const char *arg)
 	JSValueConst argv[1];
 	argv[0] = JS_NewString(g_ctx, arg);
 
-	JS_Call(g_ctx,
+	JSValue ret = JS_Call(g_ctx,
 		vapi.backend_func,
 		JS_UNDEFINED,
 		countof(argv), argv
 	);
+	if (JS_IsException(ret)) {
+		js_std_dump_error(g_ctx);
+	}
 	backend_response_str(404, "text/html", "Not found");
 }
 
@@ -166,11 +169,14 @@ my_post_backend(const char *arg, void *data, size_t len)
 	argv[0] = JS_NewString(g_ctx, arg);
 	argv[1] = JS_NewStringLen(g_ctx, data, len);
 
-	JS_Call(g_ctx,
+	JSValue ret = JS_Call(g_ctx,
 		vapi.post_backend_func,
 		JS_UNDEFINED,
 		countof(argv), argv
 	);
+	if (JS_IsException(ret)) {
+		js_std_dump_error(g_ctx);
+	}
 	backend_response_str(404, "text/html", "Not found");
 }
 
@@ -189,6 +195,9 @@ static void storage_trampoline(
 		JS_UNDEFINED,
 		countof(argv), argv
 	);
+	if (JS_IsException(ret)) {
+		js_std_dump_error(g_ctx);
+	}
 
 	size_t textlen;
 	const char *text =
