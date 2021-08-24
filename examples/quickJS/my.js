@@ -26,7 +26,7 @@
 	scriptArgs[3] = "/path/to/state.file"
 */
 
-var state_file = scriptArgs[3]
+const state_file = scriptArgs[3]
 console.log("Hello QuickJS World");
 
 /* At the start we attempt to load previous text from disk */
@@ -57,13 +57,17 @@ function my_post_backend(path, data)
 function set_storage(data)
 {
 	/* We should be calling this function from storage */
-//	console.assert(varnish.is_storage());
+	if (!varnish.is_storage()) {
+		console.log("set_storage() should only be called from storage VM");
+		return;
+	}
 
 	/* Modify text (in storage) */
 	var json = JSON.parse(data);
 	text += ">> " + json["text"] + "\n";
 
-	var file = std.open("/tmp/jpizza.state", "wb");
+	/* "Persistence" using the state file from scriptArgs[3] */
+	var file = std.open(state_file, "wb");
 	file.puts(text);
 	file.close();
 

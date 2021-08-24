@@ -158,6 +158,7 @@ my_backend(const char *arg)
 	);
 	if (JS_IsException(ret)) {
 		js_std_dump_error(g_ctx);
+		backend_response_str(500, "text/plain", "Internal server error");
 	}
 	backend_response_str(404, "text/html", "Not found");
 }
@@ -176,6 +177,7 @@ my_post_backend(const char *arg, void *data, size_t len)
 	);
 	if (JS_IsException(ret)) {
 		js_std_dump_error(g_ctx);
+		backend_response_str(500, "text/plain", "Internal server error");
 	}
 	backend_response_str(404, "text/html", "Not found");
 }
@@ -197,6 +199,10 @@ static void storage_trampoline(
 	);
 	if (JS_IsException(ret)) {
 		js_std_dump_error(g_ctx);
+		/* Cleanup */
+		JS_FreeValue(g_ctx, ret);
+		storage_return_nothing();
+		return;
 	}
 
 	size_t textlen;
@@ -228,14 +234,22 @@ JSValue js_storage_call(JSContext *ctx,
 			{TRUST_ME(func), funclen+1},
 			{TRUST_ME(data), datalen}
 		};
-		char result[4096];
+		/* Make room for a decent-sized buffer */
+		const size_t result_size = 65536ul;
+		char *result = malloc(result_size);
 
 		/* Make call into storage VM */
 		long reslen = storage_callv(storage_trampoline,
-			2, buffers, result, sizeof(result));
+			2, buffers, result, result_size);
 
-		/* Create a JS string from the result */
-		return JS_NewStringLen(g_ctx, result, reslen);
+		/* Probably an exception is < 0 */
+		if (reslen >= 0) {
+			/* Create a JS string from the result */
+			JSValue resstr = JS_NewStringLen(ctx, result, reslen);
+			free(result);
+			return resstr;
+		}
+		free(result);
 	}
 	return JS_EXCEPTION;
 }
@@ -272,12 +286,18 @@ extern void on_live_update()
 		0, NULL
 	);
 
-	size_t datalen;
-	const char *data =
-		JS_ToCStringLen(g_ctx, &datalen, ret);
-	storage_return(data, datalen);
-	/* Cleanup */
-	JS_FreeValue(g_ctx, ret);
+	/* TODO: Accept ArrayBuffer as well */
+	if (JS_IsString(ret))
+	{
+		size_t datalen;
+		const char *data =
+			JS_ToCStringLen(g_ctx, &datalen, ret);
+		storage_return(data, datalen);
+		/* Cleanup */
+		JS_FreeValue(g_ctx, ret);
+	} else {
+		storage_return_nothing();
+	}
 }
 
 __attribute__((used))
@@ -288,8 +308,10 @@ extern void on_resume_update(size_t len)
 
 	JSValue sfunc =
 		JS_GetPropertyStr(g_ctx, global_obj, "on_resume_update");
-	if (!JS_IsFunction(g_ctx, sfunc))
+	if (!JS_IsFunction(g_ctx, sfunc)) {
+		free(data);
 		return;
+	}
 
 	JSValueConst argv[1];
 	argv[0] = JS_NewStringLen(g_ctx, data, len);
