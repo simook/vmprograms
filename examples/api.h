@@ -79,18 +79,27 @@ extern long vmcommit(void);
 
 /* This cannot be used when KVM is used as a backend */
 #ifndef KVM_API_ALREADY_DEFINED
-#define DYNAMIC_CALL(name, hash) \
+#define DYNAMIC_CALL(name, hash, ...) \
 	asm(".global " #name "\n" \
 	#name ":\n" \
-	"	mov " #hash ", %eax\n" \
+	"	mov $" #hash ", %eax\n" \
 	"	out %eax, $1\n" \
 	"   ret\n"); \
-	extern long name();
+	extern long name(__VA_ARGS__);
 #else
-#define DYNAMIC_CALL(name, hash) \
-	extern long name();
+#define DYNAMIC_CALL(name, hash, ...) \
+	extern long name(__VA_ARGS__);
 #endif
 DYNAMIC_CALL(goto_dns, 0x746238D2)
+
+struct curl_opts {
+	long   status;
+	size_t content_length;
+	void  *content;
+	long   ctlen;
+	char   ctype[256];
+};
+DYNAMIC_CALL(curl_fetch, 0xB86011FB, const char*, size_t, struct curl_opts*)
 
 /* Embed binary data into executable */
 #define EMBED_BINARY(name, filename) \

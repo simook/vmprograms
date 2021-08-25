@@ -51,7 +51,7 @@ function my_post_backend(path, data)
 
 	/* The result is the updated text */
 	varnish.response(201,
-		"text/plain", result);
+		"text/plain", varnish.fetch("example.com"));
 }
 
 function set_storage(data)

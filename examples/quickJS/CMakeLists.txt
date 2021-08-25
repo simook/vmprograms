@@ -10,8 +10,8 @@ set(SOURCES
 	src/http.c
 	static_site.c
 )
-set_source_files_properties(main.c OBJECT_DEPENDS
-	${CMAKE_SOURCE_DIR}/my.js
+set_source_files_properties(src/main.c OBJECT_DEPENDS
+	${CMAKE_SOURCE_DIR}/src/my.js
 )
 
 add_executable(jsapp ${SOURCES})

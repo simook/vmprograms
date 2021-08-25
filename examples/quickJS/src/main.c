@@ -11,6 +11,7 @@ static JSValue js_storage_call(JSContext*, JSValueConst, int, JSValueConst*);
 static JSValue js_is_storage_call(JSContext*, JSValueConst, int, JSValueConst*);
 static JSValue js_vmcommit_call(JSContext*, JSValueConst, int, JSValueConst*);
 static JSValue js_sendfile_call(JSContext*, JSValueConst, int, JSValueConst*);
+extern JSValue js_http_fetch_call(JSContext*, JSValueConst, int, JSValueConst*);
 extern void static_site(const char*);
 
 static int eval_buf(JSContext *ctx, const void *buf, int buf_len,
@@ -88,6 +89,9 @@ int main(int argc, char** argv)
 	JS_SetPropertyStr(g_ctx, vapi.varnish,
 		"is_storage",
 		JS_NewCFunction(g_ctx, js_is_storage_call, "is_storage", 0));
+	JS_SetPropertyStr(g_ctx, vapi.varnish,
+		"fetch",
+		JS_NewCFunction(g_ctx, js_http_fetch_call, "fetch", 1));
 	/*** End Of VARNISH API ***/
 
 	const char *str = "import * as std from 'std';\n"
