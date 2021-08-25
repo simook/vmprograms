@@ -1,9 +1,9 @@
-#include "../api.h"
+#include "api.h"
 #include <assert.h>
 #include <stdio.h>
-#include "quickjs/cutils.h"
-#include "quickjs/quickjs.h"
-#include "quickjs/quickjs-libc.h"
+#include <quickjs/cutils.h>
+#include <quickjs/quickjs.h>
+#include <quickjs/quickjs-libc.h>
 #define COUNTOF(a)  (sizeof(a) / sizeof(*(a)))
 void dlopen() {}; void dlsym() {}; void dlclose() {} /* Don't ask */
 static JSValue js_backend_response(JSContext*, JSValueConst, int, JSValueConst*);
@@ -41,7 +41,7 @@ static int eval_buf(JSContext *ctx, const void *buf, int buf_len,
 	return ret;
 }
 
-EMBED_BINARY(myjs, "../my.js");
+EMBED_BINARY(myjs, "src/my.js");
 
 static JSValue global_obj;
 static JSContext *g_ctx;

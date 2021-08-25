@@ -9,8 +9,8 @@ mime = mimetypes.MimeTypes()
 
 file = open(output_c, "w")
 file.write('#define KVM_API_ALREADY_DEFINED\n')
-file.write('#include "api.h"\n')
-file.write('#include "crc32.h"\n')
+file.write('#include "src/api.h"\n')
+file.write('#include "src/crc32.h"\n')
 file.write('#include <stdio.h>\n')
 file.write('\n')
 
