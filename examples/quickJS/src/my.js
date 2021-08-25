@@ -19,7 +19,10 @@
 	- varnish.vmcommit()
 
 	Fetch content of URL and return as string, or throw:
-	- varnish.fetch(url)
+	- var resp = varnish.fetch(url)
+		resp.status = 200
+		resp.type   = "text/plain"
+		resp.content = "Hello World!"
 
 	Logging and errors will show up in VSL.
 
@@ -49,10 +52,16 @@ function my_backend(path)
 
 function my_post_backend(path, data)
 {
+	/* For demo purposes */
+	if (path == "/example") {
+		var resp = varnish.fetch("https://example.com");
+		varnish.response(resp.status,
+			resp.type,
+			resp.content);
+	}
+
 	/* Make a call into storage @set_storage with data as argument */
 	var result = varnish.storage("set_storage", data);
-
-	/* varnish.fetch("https://example.com") */
 
 	/* The result is the updated text */
 	varnish.response(201,
@@ -83,7 +92,8 @@ function set_storage(data)
 	return text;
 }
 
-/* Keep the program state during updates */
+/* Specially named functions that lets you
+   keep the program state during updates. */
 function on_live_update()
 {
 	return text;

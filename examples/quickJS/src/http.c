@@ -20,8 +20,17 @@ JSValue js_http_fetch_call(JSContext *ctx,
 			.ctlen  = 256,
 		};
 		if (curl_fetch(url, urllen, &opts) == 0) {
-			return JS_NewStringLen(
-				ctx, opts.content, opts.content_length);
+			JSValue result = JS_NewObject(ctx);
+			JS_SetPropertyStr(ctx, result,
+				"status",
+				JS_NewUint32(ctx, opts.status));
+			JS_SetPropertyStr(ctx, result,
+				"type",
+				JS_NewStringLen(ctx, opts.ctype, opts.ctlen));
+			JS_SetPropertyStr(ctx, result,
+				"content",
+				JS_NewStringLen(ctx, opts.content, opts.content_length));
+			return result;
 		}
 	}
 	return JS_EXCEPTION;
