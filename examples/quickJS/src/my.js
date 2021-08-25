@@ -18,6 +18,9 @@
 	Create a snapshot VM from this and base future requests on it:
 	- varnish.vmcommit()
 
+	Fetch content of URL and return as string, or throw:
+	- varnish.fetch(url)
+
 	Logging and errors will show up in VSL.
 
 	scriptArgs[0] = "vmod_kvm"
@@ -49,9 +52,11 @@ function my_post_backend(path, data)
 	/* Make a call into storage @set_storage with data as argument */
 	var result = varnish.storage("set_storage", data);
 
+	/* varnish.fetch("https://example.com") */
+
 	/* The result is the updated text */
 	varnish.response(201,
-		"text/plain", varnish.fetch("example.com"));
+		"text/plain", result);
 }
 
 function set_storage(data)
