@@ -4,6 +4,7 @@
 #include <stdio.h>
 static void my_storage(size_t n, struct virtbuffer[n], size_t);
 static void my_post_storage(size_t n, struct virtbuffer[n], size_t);
+#define SILENT_START
 
 static char data[6000];
 static int  datalen = 0;
@@ -12,7 +13,9 @@ int main(int argc, char **argv)
 {
 	datalen = snprintf(data, sizeof(data),
 		"Hello World!");
+#ifndef SILENT_START
 	printf("Hello from '%s'! Storage=%s\n", argv[1], argv[2]);
+#endif
 }
 
 __attribute__((used))
@@ -26,12 +29,16 @@ extern void my_backend(const char *arg)
 extern void __attribute__((used))
 my_post_backend(const char *arg, void *indata, size_t inlen)
 {
-	char result[sizeof(data)];
-	const long rlen =
-		storage_call(my_post_storage, indata, inlen, result, sizeof(result));
+	//char result[sizeof(data)];
+	//const long rlen =
+	//	storage_call(my_post_storage, indata, inlen, result, sizeof(result));
+
+	memcpy(data, indata, inlen);
+	datalen = inlen;
+	assert(vmcommit() == 0);
 
 	const char ctype[] = "text/plain";
-	backend_response(201, ctype, sizeof(ctype)-1, result, rlen);
+	backend_response(201, ctype, sizeof(ctype)-1, data, datalen);
 }
 
 char* gdata = NULL;
