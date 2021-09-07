@@ -56,7 +56,6 @@ static void finalizeWAV(std::vector<char>& wav,
 	header.data_size = subchunk2_size;
 }
 
-static std::vector<char> wav;
 static size_t sampleCount = 0;
 
 static int callback(short* s, int length, espeak_EVENT* ev)
@@ -88,6 +87,7 @@ void my_backend(const char *text)
 	unsigned int* identifier = NULL;
 	void* user_data = NULL;
 
+	static std::vector<char> wav;
 	setupWAV(wav, 22050, 1);
 
 	printf("Saying  '%s'...\n", text);
@@ -96,5 +96,5 @@ void my_backend(const char *text)
 	finalizeWAV(wav, sampleCount);
 
 	const char mtype[] = "audio/vnd.wave";
-	backend_response(mtype, sizeof(mtype)-1, wav.data(), wav.size());
+	backend_response(200, mtype, sizeof(mtype)-1, wav.data(), wav.size());
 }
