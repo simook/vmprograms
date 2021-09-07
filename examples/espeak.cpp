@@ -56,6 +56,7 @@ static void finalizeWAV(std::vector<char>& wav,
 	header.data_size = subchunk2_size;
 }
 
+static std::vector<char> wav;
 static size_t sampleCount = 0;
 
 static int callback(short* s, int length, espeak_EVENT* ev)
@@ -71,7 +72,7 @@ static const int buflength = 500;
 int main()
 {
 	const char voicename[] = "Storm";
-	const char *path = NULL;
+	const char *path = "/usr/lib/x86_64-linux-gnu/espeak-ng-data";
 
 	espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, buflength, path, 0x0);
 	espeak_SetVoiceByName(voicename);
@@ -87,7 +88,6 @@ void my_backend(const char *text)
 	unsigned int* identifier = NULL;
 	void* user_data = NULL;
 
-	static std::vector<char> wav;
 	setupWAV(wav, 22050, 1);
 
 	printf("Saying  '%s'...\n", text);
