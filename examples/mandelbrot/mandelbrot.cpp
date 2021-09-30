@@ -119,7 +119,11 @@ void my_backend(const char*, int, int)
 	const float y1 = -1.0 * factor;
 	const float y2 =  2.0 * factor;
 
+#ifdef __AVX512F__
+	auto bitmap = fractal<16, width, height, 120> (x1, y1, x2, y2);
+#else
 	auto bitmap = fractal<8, width, height, 120> (x1, y1, x2, y2);
+#endif
 	auto* data = (const uint8_t *)bitmap.data();
 
 	std::vector<uint8_t> png;
