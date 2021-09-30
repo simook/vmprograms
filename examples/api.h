@@ -44,8 +44,8 @@ asm(".global vmcommit\n" \
 #endif
 
 /* Use this to create a backend response from a KVM backend */
-extern void __attribute__((noreturn))
-backend_response(int16_t status, const void *t, uint64_t, const void *c, uint64_t);
+extern void __attribute__((noreturn, used))
+backend_response(int16_t status, const void *t, uintptr_t, const void *c, uintptr_t);
 
 static inline
 void backend_response_str(int16_t status, const char *ctype, const char *content)
@@ -119,6 +119,9 @@ DYNAMIC_CALL(curl_fetch, 0xB86011FB, const char*, size_t, struct curl_opts*)
 	extern unsigned name ##_size;
 
 #define TRUST_ME(ptr)    ((void*)(uintptr_t)(ptr))
+
+__attribute__((used))
+extern void my_backend(const char*, int, int);
 
 #ifdef __cplusplus
 }

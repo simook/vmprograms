@@ -13,3 +13,6 @@
 [submodule "examples/quickJS/quickjs"]
 	path = examples/quickJS/quickjs
 	url = https://github.com/bellard/quickjs.git
+[submodule "examples/libsimdpp"]
+	path = examples/mandelbrot/libsimdpp
+	url = https://github.com/p12tic/libsimdpp.git
