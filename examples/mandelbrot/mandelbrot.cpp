@@ -26,9 +26,14 @@ static constexpr std::array<uint32_t, 16> color_mapping {
 	bgr24(106, 52, 3),
 };
 
-inline void encode_color(uint32_t& px, int count)
+inline void encode_colors(uint32_t* px, int count)
 {
-	px = color_mapping[count & 15];
+	for (int i = 0; i < count; i += 4) {
+		px[i+0] = color_mapping[px[i+0] & 15];
+		px[i+1] = color_mapping[px[i+1] & 15];
+		px[i+2] = color_mapping[px[i+2] & 15];
+		px[i+3] = color_mapping[px[i+3] & 15];
+	}
 }
 
 #include <simdpp/simd.h>
@@ -38,16 +43,16 @@ template <int N, int DimX, int DimY, int MaxCount>
 std::array<uint32_t, DimX * DimY>
 fractal(float left, float top, float xside, float yside)
 {
-	std::array<uint32_t, DimX * DimY> bitmap {};
+	SIMDPP_ALIGN(64) std::array<uint32_t, DimX * DimY> bitmap {};
 	using namespace simdpp;
 	using v_fp32 = float32<N>;
 	using v_i32  = int32<N>;
 
 	// setting up the xscale and yscale
-	v_fp32 xscale = splat(xside / DimX);
-	v_fp32 yscale = splat(yside / DimY);
-	v_fp32 vleft = splat(left);
-	v_fp32 vtop  = splat(top);
+	const v_fp32 xscale = splat(xside / DimX);
+	const v_fp32 yscale = splat(yside / DimY);
+	const v_fp32 vleft = splat(left);
+	const v_fp32 vtop  = splat(top);
 
 	const v_i32 zero = splat(0);
 	const v_i32 one  = splat(1);
@@ -59,7 +64,7 @@ fractal(float left, float top, float xside, float yside)
 	// scanning every point in that rectangular area.
 	// Each point represents a Complex number (x + yi).
 	// Iterate that complex number
-	for (int y = 0; y < DimY / 2; y++) {
+	for (int y = 0; y < DimY; y++) {
 		const v_fp32 vy = splat(y);
 		const v_fp32 c_imag = vy * yscale + vtop;
 
@@ -94,14 +99,12 @@ fractal(float left, float top, float xside, float yside)
 				nv = nv + (mask & one);
 			}
 
-			SIMDPP_ALIGN(64) int32_t values[N];
-			store(values, nv);
-			for (int i = 0; i < N; i++)
-			encode_color(bitmap[x+i + y * DimX], values[i]);
+			store(&bitmap[x + y * DimX], nv);
 		}
-	}
-	for (int y = 0; y < DimY / 2; y++) {
-		memcpy(&bitmap[(DimY-1 - y) * DimX], &bitmap[y * DimX], 4 * DimX);
+		for (int x = 0; x < DimX; x += N)
+		{
+			encode_colors(&bitmap[x + y * DimX], N);
+		}
 	}
 	return bitmap;
 }
@@ -119,19 +122,21 @@ void my_backend(const char*, int, int)
 	const float y1 = -1.0 * factor;
 	const float y2 =  2.0 * factor;
 
-#ifdef __AVX512F__
-	auto bitmap = fractal<16, width, height, 120> (x1, y1, x2, y2);
-#else
 	auto bitmap = fractal<8, width, height, 120> (x1, y1, x2, y2);
-#endif
-	auto* data = (const uint8_t *)bitmap.data();
 
-	std::vector<uint8_t> png;
-	png.reserve(48*1024);
-	lodepng::encode(png, data, width, height);
-
-	const char* ctype = "image/png";
-	backend_response(200, ctype, strlen(ctype), png.data(), png.size());
+	constexpr bool USE_PNG = false;
+	if constexpr(USE_PNG) {
+		std::vector<uint8_t> png;
+		png.reserve(48*1024);
+		lodepng::encode(png, (const uint8_t *)bitmap.data(), width, height);
+		const char* ctype = "image/png";
+		backend_response(200, ctype, strlen(ctype),
+			png.data(), png.size());
+	} else {
+		const char* ctype = "image/raw";
+		backend_response(200, ctype, strlen(ctype),
+			bitmap.data(), 0);
+	}
 }
 
 int main()
