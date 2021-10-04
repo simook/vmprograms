@@ -26,6 +26,10 @@ static constexpr std::array<uint32_t, 16> color_mapping {
 	bgr24(106, 52, 3),
 };
 
+inline void encode_color(uint32_t* px, int count)
+{
+	*px = color_mapping[count & 15];
+}
 inline void encode_colors(uint32_t* px, int count)
 {
 	for (int i = 0; i < count; i += 4) {
@@ -34,6 +38,51 @@ inline void encode_colors(uint32_t* px, int count)
 		px[i+2] = color_mapping[px[i+2] & 15];
 		px[i+3] = color_mapping[px[i+3] & 15];
 	}
+}
+
+template <int DimX, int DimY, int MaxCount>
+std::array<uint32_t, DimX * DimY>
+fractal_nosimd(float left, float top, float xside, float yside)
+{
+	std::array<uint32_t, DimX * DimY> bitmap {};
+
+	// setting up the xscale and yscale
+	const float xscale = xside / DimX;
+	const float yscale = yside / DimY;
+
+	// scanning every point in that rectangular area.
+	// Each point represents a Complex number (x + yi).
+	// Iterate that complex number
+	for (int y = 0; y < DimY; y++)
+	for (int x = 0; x < DimX; x++)
+	{
+		float c_real = x * xscale + left;
+		float c_imag = y * yscale + top;
+		float z_real = 0;
+		float z_imag = 0;
+		int count = 0;
+
+		// Calculate whether c(c_real + c_imag) belongs
+		// to the Mandelbrot set or not and draw a pixel
+		// at coordinates (x, y) accordingly
+		// If you reach the Maximum number of iterations
+		// and If the distance from the origin is
+		// greater than 2 exit the loop
+		while ((z_real * z_real + z_imag * z_imag < 4)
+			&& (count < MaxCount))
+		{
+			// Calculate Mandelbrot function
+			// z = z*z + c where z is a complex number
+			float tempx =
+				z_real * z_real - z_imag * z_imag + c_real;
+			z_imag = 2 * z_real * z_imag + c_imag;
+			z_real = tempx;
+			count++;
+		}
+
+		encode_color(&bitmap[x + y * DimX], count);
+	}
+	return bitmap;
 }
 
 #include <simdpp/simd.h>
@@ -53,10 +102,10 @@ fractal(float left, float top, float xside, float yside)
 	const v_fp32 yscale = splat(yside / DimY);
 	const v_fp32 vleft = splat(left);
 	const v_fp32 vtop  = splat(top);
+	const v_fp32 bailout = splat(4.0f);
 
 	const v_i32 zero = splat(0);
 	const v_i32 one  = splat(1);
-	const v_fp32 bailout = splat(4.0);
 	const v_fp32 vx_array =
 		make_float(0, 1, 2, 3, 4, 5, 6, 7,
 			8, 9, 10, 11, 12, 13, 14, 15);
@@ -73,8 +122,8 @@ fractal(float left, float top, float xside, float yside)
 			const v_fp32 vx = (v_fp32)splat(x) + vx_array;
 
 			const v_fp32 c_real = vx * xscale + vleft;
-			v_fp32 z_real = splat(0);
-			v_fp32 z_imag = splat(0);
+			v_fp32 z_real = splat(0.0f);
+			v_fp32 z_imag = splat(0.0f);
 			v_i32 nv = zero;
 
 			// Calculate whether c(c_real + c_imag) belongs
@@ -85,7 +134,7 @@ fractal(float left, float top, float xside, float yside)
 			// greater than 2 exit the loop
 			for (int n = 0; n < MaxCount; n++)
 			{
-				v_fp32 a = fmadd(z_real, z_real, fmadd(0 - z_imag, z_imag, c_real));
+				v_fp32 a = fmadd(z_real, z_real, fmadd(0.f - z_imag, z_imag, c_real));
 				v_fp32 b = fmadd(z_real, z_imag + z_imag, c_imag);
 				a = z_real * z_real - z_imag * z_imag + c_real;
 				b = z_real * (z_imag + z_imag) + c_imag;
@@ -122,7 +171,15 @@ void my_backend(const char*, int, int)
 	const float y1 = -1.0 * factor;
 	const float y2 =  2.0 * factor;
 
+#ifdef NOSIMD
+	auto bitmap = fractal_nosimd<width, height, 120> (x1, y1, x2, y2);
+#elifdef AVX512
+	auto bitmap = fractal<64, width, height, 120> (x1, y1, x2, y2);
+#elifdef SSE
+	auto bitmap = fractal<4, width, height, 120> (x1, y1, x2, y2);
+#else
 	auto bitmap = fractal<8, width, height, 120> (x1, y1, x2, y2);
+#endif
 
 	constexpr bool USE_PNG = false;
 	if constexpr(USE_PNG) {

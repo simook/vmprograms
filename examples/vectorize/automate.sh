@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-file="${1-build/mandelbrot_avx2}"
+file="${1-build/vectorize_avx2}"
 tenant="zpizza.com"
 host="http://127.0.0.1:8080"
 key="12daf155b8508edc4a4b8002264d7494"
