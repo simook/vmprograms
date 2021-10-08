@@ -83,14 +83,55 @@ float dotprod_avx512(const VectorArray<N>& va, const VectorArray<N>& vb)
 	return _mm512_reduce_add_ps(sum.f32x16);
 }
 
+template <size_t N>
+struct MPdata {
+	const VectorArray<N>& va;
+	const VectorArray<N>& vb;
+	std::array<float, 8> results;
+};
+
+extern "C" __attribute__((target("fma")))
+void dotprod_mp_avx(void *vdata)
+{
+	constexpr size_t N = 8*1024*1024;
+	constexpr size_t SLICE = 8;
+	MPdata<N>& data = *(MPdata<N> *)vdata;
+	const int vcpu = vcpuid();
+	const size_t offset = (N / SLICE) * vcpu;
+	const size_t slice = (N / SLICE) * 1;
+
+	auto* f1 = (__m256*) &data.va.f32[offset];
+	auto* f2 = (__m256*) &data.vb.f32[offset];
+	union {
+		std::array<float, 8> f32;
+		__m256 f32x8;
+	} sum;
+	sum.f32x8 = _mm256_set1_ps(0.0f);
+
+	#pragma unroll(4)
+	for (size_t i = 0; i < slice / 8; i += 8) {
+		sum.f32x8 = _mm256_fmadd_ps(sum.f32x8, f1[i], f2[i]);
+	}
+
+	data.results[vcpu] =
+		std::accumulate(sum.f32.begin(), sum.f32.end(), 0);
+}
+
 extern "C"
 void my_backend(const char*, int, int)
 {
-	constexpr size_t N = 1024*1024;
+	constexpr size_t N = 8*1024*1024;
 	auto a = new VectorArray<N>;
 	auto b = new VectorArray<N>;
 
-#if defined(NOSIMD)
+#if defined(MULTIPROCESS)
+	MPdata<N> data { *a, *b, {0.0f} };
+	multiprocess(7, dotprod_mp_avx, &data);
+	dotprod_mp_avx(&data);
+	multiprocess_wait();
+	const float result = std::accumulate(
+		data.results.begin(), data.results.end(), 0);
+#elif defined(NOSIMD)
 	auto result = dotprod_nosimd(*a, *b);
 #elif defined(AVX512)
 	auto result = dotprod_avx512(*a, *b);

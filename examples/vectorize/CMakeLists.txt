@@ -4,6 +4,7 @@ project (vectorize CXX)
 option(NOSIMD       "Disable all SIMD" OFF)
 option(SSE4         "Override with SSE4.2" OFF)
 option(AVX512F      "Enable AVX512-F" OFF)
+option(MULTIPROCESS "Enable multi-processing" OFF)
 
 set (SOURCES
 	vectorize.cpp
@@ -26,6 +27,9 @@ add_executable(vectorize ${SOURCES})
 target_include_directories(vectorize PRIVATE ${CMAKE_SOURCE_DIR}/../lodepng)
 target_include_directories(vectorize PRIVATE ${CMAKE_SOURCE_DIR}/libsimdpp)
 
+if (MULTIPROCESS)
+	target_compile_definitions(vectorize PUBLIC MULTIPROCESS=1)
+endif()
 if (NOSIMD)
 	target_compile_definitions(vectorize PUBLIC NOSIMD=1)
 elseif (SSE4)

@@ -41,6 +41,27 @@ asm(".global vmcommit\n" \
 "	mov $0x1070A, %eax\n" \
 "	out %eax, $0\n" \
 "   ret\n");
+
+asm(".global multiprocess\n" \
+".type multiprocess, function\n" \
+"multiprocess:\n" \
+"	mov $0x10710, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global multiprocess_wait\n" \
+".type multiprocess_wait, function\n" \
+"multiprocess_wait:\n" \
+"	mov $0x10711, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global vcpuid\n" \
+".type vcpuid, function\n" \
+"vcpuid:\n" \
+"   xor %eax, %eax\n" \
+"	mov %gs, %ax\n" \
+"   ret\n");
 #endif
 
 /* Use this to create a backend response from a KVM backend */
@@ -76,6 +97,15 @@ storage_return_nothing(void) { storage_return(NULL, 0); }
 /* Record the current state into a new VM, and make that
    VM handle future requests. WARNING: RCU, Racey */
 extern long vmcommit(void);
+
+/* Start multi-processing using @n vCPUs on given function
+   with provided data as argument. */
+extern long multiprocess(size_t n, void(*func) (void*), void*);
+/* Block until previous multi-processing has ended. */
+extern long multiprocess_wait();
+
+/* Returns the current CPU ID. */
+extern int vcpuid();
 
 /* This cannot be used when KVM is used as a backend */
 #ifndef KVM_API_ALREADY_DEFINED

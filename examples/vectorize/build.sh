@@ -4,20 +4,24 @@ set -e
 mkdir -p build
 pushd build
 
-cmake .. -G Ninja -DNOSIMD=ON -DAVX512F=OFF -DSSE4=OFF
+cmake .. -G Ninja -DMULTIPROCESS=OFF -DNOSIMD=ON -DAVX512F=OFF -DSSE4=OFF
 ninja
-cp vectorize vectorize_nosimd
+mv vectorize vectorize_nosimd
 
 cmake .. -G Ninja -DNOSIMD=OFF -DAVX512F=OFF -DSSE4=ON
 ninja
-cp vectorize vectorize_sse42
+mv vectorize vectorize_sse42
 
 cmake .. -G Ninja -DNOSIMD=OFF -DAVX512F=OFF -DSSE4=OFF
 ninja
-cp vectorize vectorize_avx2
+mv vectorize vectorize_avx2
 
 cmake .. -G Ninja -DNOSIMD=OFF -DAVX512F=ON -DSSE4=OFF
 ninja
-cp vectorize vectorize_avx512
+mv vectorize vectorize_avx512
+
+cmake .. -G Ninja -DMULTIPROCESS=ON -DNOSIMD=OFF -DAVX512F=OFF -DSSE4=OFF
+ninja
+mv vectorize vectorize_mp_avx2
 
 popd
