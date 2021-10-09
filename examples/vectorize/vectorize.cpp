@@ -150,7 +150,7 @@ void my_backend(const char*, int, int)
 
 #if defined(MULTIPROCESS)
 	MPdata<N> data { *a, *b, 8, {0.0f} };
-	multiprocess(7, dotprod_mp_avx, &data);
+	multiprocess(7, (multiprocess_t)dotprod_mp_avx, &data);
 	dotprod_mp_avx(0, &data);
 	multiprocess_wait();
 	const float result = std::accumulate(

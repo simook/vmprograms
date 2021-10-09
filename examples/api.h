@@ -97,9 +97,10 @@ storage_return_nothing(void) { storage_return(NULL, 0); }
    VM handle future requests. WARNING: RCU, Racey */
 extern long vmcommit(void);
 
-/* Start multi-processing using @n vCPUs on given function
-   with provided data as argument. */
-extern long multiprocess(size_t n, void(*func)(int, void*), void*);
+/* Start multi-processing using @n vCPUs on given function,
+   forwarding up to 4 integral/pointer arguments. */
+typedef void(*multiprocess_t)(int, ...);
+extern long multiprocess(size_t n, multiprocess_t func, ...);
 /* Sleep until multi-processing workload has finished. */
 extern long multiprocess_wait();
 

@@ -147,7 +147,7 @@ fractal_multiprocess(float left, float top, float xside, float yside)
 		.yscale = yscale,
 		.data = &bitmap[0],
 	};
-	multiprocess(work.threads-1, fractal_worker, &work);
+	multiprocess(work.threads-1, (multiprocess_t)fractal_worker, &work);
 	fractal_worker(0, &work);
 	multiprocess_wait();
 
