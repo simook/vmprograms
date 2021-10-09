@@ -59,8 +59,7 @@ asm(".global multiprocess_wait\n" \
 asm(".global vcpuid\n" \
 ".type vcpuid, function\n" \
 "vcpuid:\n" \
-"   xor %eax, %eax\n" \
-"	mov %gs, %ax\n" \
+"	mov %gs:(0x0), %eax\n" \
 "   ret\n");
 #endif
 
@@ -100,11 +99,11 @@ extern long vmcommit(void);
 
 /* Start multi-processing using @n vCPUs on given function
    with provided data as argument. */
-extern long multiprocess(size_t n, void(*func) (void*), void*);
-/* Block until previous multi-processing has ended. */
+extern long multiprocess(size_t n, void(*func)(int, void*), void*);
+/* Sleep until multi-processing workload has finished. */
 extern long multiprocess_wait();
 
-/* Returns the current CPU ID. */
+/* Returns the current vCPU ID. Used during multi-processing. */
 extern int vcpuid();
 
 /* This cannot be used when KVM is used as a backend */

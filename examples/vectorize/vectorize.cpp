@@ -11,6 +11,31 @@ struct VectorArray {
 	alignas(64) std::array<float, N> f32;
 };
 
+// x = ( x7, x6, x5, x4, x3, x2, x1, x0 )
+__attribute__((target("avx2")))
+static inline float sum8(__m256 x)
+{
+    // hiQuad = ( x7, x6, x5, x4 )
+    const __m128 hiQuad = _mm256_extractf128_ps(x, 1);
+    // loQuad = ( x3, x2, x1, x0 )
+    const __m128 loQuad = _mm256_castps256_ps128(x);
+    // sumQuad = ( x3 + x7, x2 + x6, x1 + x5, x0 + x4 )
+    const __m128 sumQuad = _mm_add_ps(loQuad, hiQuad);
+    // loDual = ( -, -, x1 + x5, x0 + x4 )
+    const __m128 loDual = sumQuad;
+    // hiDual = ( -, -, x3 + x7, x2 + x6 )
+    const __m128 hiDual = _mm_movehl_ps(sumQuad, sumQuad);
+    // sumDual = ( -, -, x1 + x3 + x5 + x7, x0 + x2 + x4 + x6 )
+    const __m128 sumDual = _mm_add_ps(loDual, hiDual);
+    // lo = ( -, -, -, x0 + x2 + x4 + x6 )
+    const __m128 lo = sumDual;
+    // hi = ( -, -, -, x1 + x3 + x5 + x7 )
+    const __m128 hi = _mm_shuffle_ps(sumDual, sumDual, 0x1);
+    // sum = ( -, -, -, x0 + x1 + x2 + x3 + x4 + x5 + x6 + x7 )
+    const __m128 sum = _mm_add_ss(lo, hi);
+    return _mm_cvtss_f32(sum);
+}
+
 template <size_t N>
 float dotprod_nosimd(const VectorArray<N>& va, const VectorArray<N>& vb)
 {
@@ -61,7 +86,7 @@ float dotprod_avx(const VectorArray<N>& va, const VectorArray<N>& vb)
 		sum.f32x8 = _mm256_fmadd_ps(sum.f32x8, f1[i], f2[i]);
 	}
 
-	return std::accumulate(sum.f32.begin(), sum.f32.end(), 0);
+	return sum8(sum.f32x8);
 }
 
 template <size_t N>
@@ -87,6 +112,7 @@ template <size_t N>
 struct MPdata {
 	const VectorArray<N>& va;
 	const VectorArray<N>& vb;
+	const int concurrency;
 	std::array<float, 8> results;
 };
 
@@ -94,8 +120,8 @@ extern "C" __attribute__((target("fma")))
 void dotprod_mp_avx(void *vdata)
 {
 	constexpr size_t N = 8*1024*1024;
-	constexpr size_t SLICE = 8;
 	MPdata<N>& data = *(MPdata<N> *)vdata;
+	const size_t SLICE = data.concurrency;
 	const int vcpu = vcpuid();
 	const size_t offset = (N / SLICE) * vcpu;
 	const size_t slice = (N / SLICE) * 1;
@@ -113,8 +139,7 @@ void dotprod_mp_avx(void *vdata)
 		sum.f32x8 = _mm256_fmadd_ps(sum.f32x8, f1[i], f2[i]);
 	}
 
-	data.results[vcpu] =
-		std::accumulate(sum.f32.begin(), sum.f32.end(), 0);
+	data.results[vcpu] = sum8(sum.f32x8);
 }
 
 extern "C"
@@ -125,7 +150,7 @@ void my_backend(const char*, int, int)
 	auto b = new VectorArray<N>;
 
 #if defined(MULTIPROCESS)
-	MPdata<N> data { *a, *b, {0.0f} };
+	MPdata<N> data { *a, *b, 8, {0.0f} };
 	multiprocess(7, dotprod_mp_avx, &data);
 	dotprod_mp_avx(&data);
 	multiprocess_wait();

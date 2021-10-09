@@ -1,7 +1,8 @@
 #include "../api.h"
-#include <lodepng.h>
-#include <cmath>
 #include <array>
+#include <cmath>
+#include <lodepng.h>
+#include <simdpp/simd.h>
 
 inline constexpr uint32_t bgr24(uint32_t r, uint32_t g, uint32_t b) {
 	return r | (g << 8) | (b << 16) | (255 << 24);
@@ -40,11 +41,124 @@ inline void encode_colors(uint32_t* px, int count)
 	}
 }
 
+struct Work {
+	const uint32_t DimX;
+	const uint32_t DimY;
+	const int MaxCount;
+	const uint32_t threads;
+	const float left;
+	const float top;
+	const float xscale;
+	const float yscale;
+	uint32_t* data;
+};
+
+extern "C"
+void fractal_worker(int vcpu, void* vwork)
+{
+	Work* work = (Work *)vwork;
+
+	const uint32_t ysize = work->DimY / work->threads;
+	const uint32_t y1 = vcpu * ysize;
+	const uint32_t y2 = y1 + ysize;
+
+	using namespace simdpp;
+	constexpr size_t N = 8;
+	using v_fp32 = float32<N>;
+	using v_i32  = int32<N>;
+
+	// setting up the xscale and yscale
+	const v_fp32 xscale = splat(work->xscale);
+	const v_fp32 yscale = splat(work->yscale);
+	const v_fp32 vleft = splat(work->left);
+	const v_fp32 vtop  = splat(work->top);
+	const v_fp32 bailout = splat(4.0f);
+
+	const v_i32 zero = splat(0);
+	const v_i32 one  = splat(1);
+	const v_fp32 vx_array =
+		make_float(0, 1, 2, 3, 4, 5, 6, 7,
+			8, 9, 10, 11, 12, 13, 14, 15);
+
+	// scanning every point in that rectangular area.
+	// Each point represents a Complex number (x + yi).
+	// Iterate that complex number
+	for (uint32_t y = y1; y < y2; y++)
+	{
+		const v_fp32 vy = splat(y);
+		const v_fp32 c_imag = vy * yscale + vtop;
+
+		for (uint32_t x = 0; x < work->DimX; x += N)
+		{
+			const v_fp32 vx = (v_fp32)splat(x) + vx_array;
+
+			const v_fp32 c_real = vx * xscale + vleft;
+			v_fp32 z_real = splat(0.0f);
+			v_fp32 z_imag = splat(0.0f);
+			v_i32 nv = zero;
+
+			// Calculate whether c(c_real + c_imag) belongs
+			// to the Mandelbrot set or not and draw a pixel
+			// at coordinates (x, y) accordingly
+			// If you reach the Maximum number of iterations
+			// and If the distance from the origin is
+			// greater than 2 exit the loop
+			for (int n = 0; n < work->MaxCount; n++)
+			{
+				v_fp32 a = fmadd(z_real, z_real, fmadd(0.f - z_imag, z_imag, c_real));
+				v_fp32 b = fmadd(z_real, z_imag + z_imag, c_imag);
+				a = z_real * z_real - z_imag * z_imag + c_real;
+				b = z_real * (z_imag + z_imag) + c_imag;
+				z_real = a;
+				z_imag = b;
+
+				v_fp32 m = fmadd(a, a, b * b);
+				auto mask = m < bailout;
+				if (!test_bits_any(blend(one, zero, mask)))
+					break;
+				nv = nv + (mask & one);
+			}
+
+			const uint32_t dataloc = x + y * work->DimX;
+			store(&work->data[dataloc], nv);
+			encode_colors(&work->data[dataloc], N);
+		}
+	}
+}
+
+template <int DimX, int DimY, int MaxCount>
+std::array<uint32_t, DimX * DimY>
+fractal_multiprocess(float left, float top, float xside, float yside)
+{
+	SIMDPP_ALIGN(64) std::array<uint32_t, DimX * DimY> bitmap;
+
+	// setting up the xscale and yscale
+	const float xscale = xside / DimX;
+	const float yscale = yside / DimY;
+
+	Work work {
+		.DimX = DimX,
+		.DimY = DimY,
+		.MaxCount = MaxCount,
+		.threads = 8,
+		.left   = left,
+		.top    = top,
+		.xscale = xscale,
+		.yscale = yscale,
+		.data = &bitmap[0],
+	};
+	multiprocess(work.threads-1, fractal_worker, &work);
+	fractal_worker(0, &work);
+	multiprocess_wait();
+
+	return bitmap;
+}
+
 template <int DimX, int DimY, int MaxCount>
 std::array<uint32_t, DimX * DimY>
 fractal_nosimd(float left, float top, float xside, float yside)
 {
-	std::array<uint32_t, DimX * DimY> bitmap {};
+	std::array<uint32_t, DimX * DimY> bitmap;
 
 	// setting up the xscale and yscale
 	const float xscale = xside / DimX;
@@ -84,8 +198,6 @@ fractal_nosimd(float left, float top, float xside, float yside)
 	}
 	return bitmap;
 }
-
-#include <simdpp/simd.h>
 
 // Function to draw mandelbrot set
 template <int N, int DimX, int DimY, int MaxCount>
@@ -164,6 +276,7 @@ void my_backend(const char*, int, int)
 	constexpr int counter = 0;
 	constexpr size_t width  = 512;
 	constexpr size_t height = 512;
+	constexpr size_t MAXCOUNT = 120;
 
 	const float factor = powf(2.0, counter * -0.1);
 	const float x1 = -1.5;
@@ -172,13 +285,14 @@ void my_backend(const char*, int, int)
 	const float y2 =  2.0 * factor;
 
 #ifdef NOSIMD
-	auto bitmap = fractal_nosimd<width, height, 120> (x1, y1, x2, y2);
-#elifdef AVX512
-	auto bitmap = fractal<64, width, height, 120> (x1, y1, x2, y2);
-#elifdef SSE
-	auto bitmap = fractal<4, width, height, 120> (x1, y1, x2, y2);
+	//auto bitmap = fractal_nosimd<width, height, MAXCOUNT> (x1, y1, x2, y2);
+	auto bitmap = fractal_multiprocess<width, height, MAXCOUNT> (x1, y1, x2, y2);
+#elif defined(AVX512)
+	auto bitmap = fractal<64, width, height, MAXCOUNT> (x1, y1, x2, y2);
+#elif defined(SSE)
+	auto bitmap = fractal<4, width, height, MAXCOUNT> (x1, y1, x2, y2);
 #else
-	auto bitmap = fractal<8, width, height, 120> (x1, y1, x2, y2);
+	auto bitmap = fractal<8, width, height, MAXCOUNT> (x1, y1, x2, y2);
 #endif
 
 	constexpr bool USE_PNG = false;

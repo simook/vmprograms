@@ -9,7 +9,7 @@ echo "Sending $file to tenant $tenant at $host"
 curl -H "X-PostKey: $key" -H "Host: $tenant" --data-binary "@$file" -X POST $host
 
 N=20
-WRK="$HOME/github/wrk/wrk"
+WRK="$HOME/git/wrk/wrk"
 
 warmup=$($WRK -c1 -t1 -d 2s $host/z)
 
@@ -20,5 +20,5 @@ do
 	average=${arr[1]}
 	lowest=${arr[2]}
 	highest=${arr[3]}
-	echo $T ${average//[!0-9.]/} ${lowest//[!0-9.]/} ${highest//[!0-9.]/}
+	echo $T: $average $lowest $highest
 done

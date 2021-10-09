@@ -8,14 +8,14 @@ key="12daf155b8508edc4a4b8002264d7494"
 echo "Sending $file to tenant $tenant at $host"
 curl -H "X-PostKey: $key" -H "Host: $tenant" --data-binary "@$file" -X POST $host
 
-N=20
-WRK="$HOME/git/wrk/wrk"
+N=1
+WRK="$HOME/git/wrk2/wrk"
 
-warmup=$($WRK -c1 -t1 -d 2s $host/z)
+warmup=$($WRK -c1 -t1 -d 2s -R 150 $host/z)
 
 for T in $(seq 1 $N);
 do
-	output=$($WRK -c ${T} -t ${T} -d 4s $host/z | grep Latency)
+	output=$($WRK -c ${T} -t ${T} -d 4s -R 150 $host/z | grep Latency)
 	arr=($output)
 	average=${arr[1]}
 	lowest=${arr[2]}

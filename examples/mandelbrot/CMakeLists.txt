@@ -12,7 +12,7 @@ set (SOURCES
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -ggdb3 -std=c++20 -static -Ofast")
 if (NOSIMD)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mgeneric")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 elseif (SSE4)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
 elseif (AVX512F)
