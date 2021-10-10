@@ -117,12 +117,12 @@ struct MPdata {
 };
 
 extern "C" __attribute__((target("fma")))
-void dotprod_mp_avx(const int vcpu, void *vdata)
+void dotprod_mp_avx(void *vdata)
 {
 	constexpr size_t N = 8*1024*1024;
 	MPdata<N>& data = *(MPdata<N> *)vdata;
 	const size_t SLICE = data.concurrency;
-	const size_t offset = (N / SLICE) * vcpu;
+	const size_t offset = (N / SLICE) * vcpuid();
 	const size_t slice = (N / SLICE) * 1;
 
 	auto* f1 = (__m256*) &data.va.f32[offset];
@@ -138,7 +138,7 @@ void dotprod_mp_avx(const int vcpu, void *vdata)
 		sum.f32x8 = _mm256_fmadd_ps(sum.f32x8, f1[i], f2[i]);
 	}
 
-	data.results[vcpu] = sum8(sum.f32x8);
+	data.results[vcpuid()] = sum8(sum.f32x8);
 }
 
 extern "C"
@@ -150,8 +150,8 @@ void my_backend(const char*, int, int)
 
 #if defined(MULTIPROCESS)
 	MPdata<N> data { *a, *b, 8, {0.0f} };
-	multiprocess(7, (multiprocess_t)dotprod_mp_avx, &data);
-	dotprod_mp_avx(0, &data);
+	multiprocess(8, (multiprocess_t)dotprod_mp_avx, &data);
+	dotprod_mp_avx(&data);
 	multiprocess_wait();
 	const float result = std::accumulate(
 		data.results.begin(), data.results.end(), 0);

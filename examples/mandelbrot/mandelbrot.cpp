@@ -54,12 +54,12 @@ struct Work {
 };
 
 extern "C"
-void fractal_worker(int vcpu, void* vwork)
+void fractal_worker(void* vwork)
 {
 	Work* work = (Work *)vwork;
 
 	const uint32_t ysize = work->DimY / work->threads;
-	const uint32_t y1 = vcpu * ysize;
+	const uint32_t y1 = vcpuid() * ysize;
 	const uint32_t y2 = y1 + ysize;
 
 	using namespace simdpp;
@@ -140,15 +140,15 @@ fractal_multiprocess(float left, float top, float xside, float yside)
 		.DimX = DimX,
 		.DimY = DimY,
 		.MaxCount = MaxCount,
-		.threads = 8,
+		.threads = 2,
 		.left   = left,
 		.top    = top,
 		.xscale = xscale,
 		.yscale = yscale,
 		.data = &bitmap[0],
 	};
-	multiprocess(work.threads-1, (multiprocess_t)fractal_worker, &work);
-	fractal_worker(0, &work);
+	multiprocess(work.threads, (multiprocess_t)fractal_worker, &work);
+	fractal_worker(&work);
 	multiprocess_wait();
 
 	return bitmap;

@@ -49,10 +49,24 @@ asm(".global multiprocess\n" \
 "	out %eax, $0\n" \
 "   ret\n");
 
+asm(".global multiprocess_array\n" \
+".type multiprocess_array, function\n" \
+"multiprocess_array:\n" \
+"	mov $0x10711, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global multiprocess_clone\n" \
+".type multiprocess_clone, function\n" \
+"multiprocess_clone:\n" \
+"	mov $0x10712, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
 asm(".global multiprocess_wait\n" \
 ".type multiprocess_wait, function\n" \
 "multiprocess_wait:\n" \
-"	mov $0x10711, %eax\n" \
+"	mov $0x10713, %eax\n" \
 "	out %eax, $0\n" \
 "   ret\n");
 
@@ -98,14 +112,56 @@ storage_return_nothing(void) { storage_return(NULL, 0); }
 extern long vmcommit(void);
 
 /* Start multi-processing using @n vCPUs on given function,
-   forwarding up to 4 integral/pointer arguments. */
-typedef void(*multiprocess_t)(int, ...);
+   forwarding up to 4 integral/pointer arguments.
+   Multi-processing starts and ends asynchronously.
+   The n argument is the number of total CPUs that will exist
+   in the system, and n is required to be at least 2 to start
+   one additional CPU. Use vcpuid() to retrieve the current
+   vCPU id during asynchronous operation.
+
+   Example usage:
+	// Start 7 additional vCPUs
+	multiprocess(8, (multiprocess_t)dotprod_mp_avx, &data);
+	// Run the first portion on the main vCPU (with id 0)
+	dotprod_mp_avx(&data);
+	// Wait for the asynchronous operation to complete
+	multiprocess_wait();
+*/
+typedef void(*multiprocess_t)(...);
 extern long multiprocess(size_t n, multiprocess_t func, ...);
+
+/* Start multi-processing using @n vCPUs on given function,
+   forwarding an array with the given array element size.
+   The array must outlive the vCPU asynchronous operation.
+
+   Example usage:
+	// Start 7 additional vCPUs
+	multiprocess_array(8, dotprod_mp_avx, &data, sizeof(data[0]));
+	// Run the first portion on the main vCPU (with id 0)
+	dotprod_mp_avx(&data[0], sizeof(data[0]));
+	// Wait for the asynchronous operation to complete
+	multiprocess_wait();
+*/
+typedef void(*multiprocess_array_t)(int, void* array, size_t element_size);
+extern long multiprocess_array(size_t n,
+	multiprocess_array_t func, void* array, size_t element_size);
+
+/* Start multi-processing using @n vCPUs at the current RIP,
+   forwarding all registers except RFLAGS, RSP, RBP, RAX, R14, R15.
+   Those registers are clobbered and have undefined values.
+
+   Stack size is the size of one individual stack, and the caller
+   must make room for n stacks of the given size. Example:
+   void* stack_base = malloc(n * stack_size);
+   multiprocess_clone(n, stack_base, stack_size);
+*/
+extern long multiprocess_clone(size_t n, void* stack_base, size_t stack_size);
+
 /* Sleep until multi-processing workload has finished. */
 extern long multiprocess_wait();
 
 /* Returns the current vCPU ID. Used during multi-processing. */
-extern int vcpuid();
+extern int vcpuid() __attribute__((const));
 
 /* This cannot be used when KVM is used as a backend */
 #ifndef KVM_API_ALREADY_DEFINED
