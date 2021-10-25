@@ -18,9 +18,21 @@ int main(int argc, char **argv)
 #endif
 }
 
-__attribute__((used))
-extern void my_backend(const char *arg)
+void nada_processing(void* arg) {
+
+}
+
+extern void on_recv(const char *arg)
 {
+	const char ctype[] = "text/plain";
+	backend_response(200, ctype, sizeof(ctype)-1, data, datalen);
+}
+
+__attribute__((used))
+extern void my_backend(const char *arg, int a, int b)
+{
+//	multiprocess(8, nada_processing, NULL);
+//	multiprocess_wait();
 	const char ctype[] = "text/plain";
 	backend_response(200, ctype, sizeof(ctype)-1, data, datalen);
 	//backend_response(404, NULL, 0, NULL, 0);

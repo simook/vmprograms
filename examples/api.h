@@ -127,8 +127,8 @@ extern long vmcommit(void);
 	// Wait for the asynchronous operation to complete
 	multiprocess_wait();
 */
-typedef void(*multiprocess_t)(...);
-extern long multiprocess(size_t n, multiprocess_t func, ...);
+typedef void(*multiprocess_t)(void*);
+extern long multiprocess(size_t n, multiprocess_t func, void*);
 
 /* Start multi-processing using @n vCPUs on given function,
    forwarding an array with the given array element size.
