@@ -16,3 +16,9 @@
 [submodule "examples/libsimdpp"]
 	path = examples/mandelbrot/libsimdpp
 	url = https://github.com/p12tic/libsimdpp.git
+[submodule "examples/facedetect/libfacedetection"]
+	path = examples/facedetect/libfacedetection
+	url = https://github.com/ShiqiYu/libfacedetection.git
+[submodule "examples/json/simdjson"]
+	path = examples/json/simdjson
+	url = https://github.com/simdjson/simdjson.git

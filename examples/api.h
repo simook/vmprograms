@@ -8,6 +8,12 @@ extern "C" {
 #endif
 
 #ifndef KVM_API_ALREADY_DEFINED
+asm(".global register_func\n" \
+".type register_func, function\n" \
+"register_func:\n" \
+"	mov $0x10000, %eax\n" \
+"	out %eax, $0\n");
+
 asm(".global backend_response\n" \
 ".type backend_response, function\n" \
 "backend_response:\n" \
@@ -76,13 +82,25 @@ asm(".global vcpuid\n" \
 "	mov %gs:(0x0), %eax\n" \
 "   ret\n");
 #endif
+extern void register_func(...);
+
+/* Register callbacks for various modes of operations */
+static inline void set_on_recv(void(*f)(const char*)) { register_func(0, f); }
+static inline void set_backend_compute(void(*f)(const char*, int, int)) { register_func(1, f); }
+static inline void set_backend_post(void(*f)(const char*, const char*, size_t)) { register_func(2, f); }
+static inline void set_backend_stream_post(void(*f)(const char*, size_t)) { register_func(3, f); }
+
+/* Wait for requests without terminating machine. Call this just before
+   the end of int main(). */
+static inline void
+wait_for_requests(void) { storage_return(NULL, 0); }
 
 /* Use this to create a backend response from a KVM backend */
 extern void __attribute__((noreturn, used))
 backend_response(int16_t status, const void *t, uintptr_t, const void *c, uintptr_t);
 
-static inline
-void backend_response_str(int16_t status, const char *ctype, const char *content)
+static inline void
+backend_response_str(int16_t status, const char *ctype, const char *content)
 {
 	backend_response(status, ctype, strlen(ctype), content, strlen(content));
 }
@@ -205,9 +223,6 @@ DYNAMIC_CALL(curl_fetch, 0xB86011FB, const char*, size_t, struct curl_opts*)
 	extern unsigned name ##_size;
 
 #define TRUST_ME(ptr)    ((void*)(uintptr_t)(ptr))
-
-__attribute__((used))
-extern void my_backend(const char*, int, int);
 
 #ifdef __cplusplus
 }
