@@ -6,88 +6,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#ifndef KVM_API_ALREADY_DEFINED
-asm(".global register_func\n" \
-".type register_func, function\n" \
-"register_func:\n" \
-"	mov $0x10000, %eax\n" \
-"	out %eax, $0\n");
-
-asm(".global wait_for_requests\n" \
-".type wait_for_requests, function\n" \
-"wait_for_requests:\n" \
-"	mov $0x10001, %eax\n" \
-"	out %eax, $0\n");
-
-asm(".global backend_response\n" \
-".type backend_response, function\n" \
-"backend_response:\n" \
-"	mov $0xFFFF, %eax\n" \
-"	out %eax, $0\n");
-
-asm(".global storage_call\n" \
-".type storage_call, function\n" \
-"storage_call:\n" \
-"	mov $0x10707, %eax\n" \
-"	out %eax, $0\n" \
-"   ret\n");
-
-asm(".global storage_callv\n" \
-".type storage_callv, function\n" \
-"storage_callv:\n" \
-"	mov $0x10708, %eax\n" \
-"	out %eax, $0\n" \
-"   ret\n");
-
-asm(".global storage_return\n" \
-".type storage_return, function\n" \
-"storage_return:\n" \
-"	mov $0xFFFF, %eax\n" \
-"	out %eax, $0\n" \
-"   ret\n");
-
-asm(".global vmcommit\n" \
-".type vmcommit, function\n" \
-"vmcommit:\n" \
-"	mov $0x1070A, %eax\n" \
-"	out %eax, $0\n" \
-"   ret\n");
-
-asm(".global multiprocess\n" \
-".type multiprocess, function\n" \
-"multiprocess:\n" \
-"	mov $0x10710, %eax\n" \
-"	out %eax, $0\n" \
-"   ret\n");
-
-asm(".global multiprocess_array\n" \
-".type multiprocess_array, function\n" \
-"multiprocess_array:\n" \
-"	mov $0x10711, %eax\n" \
-"	out %eax, $0\n" \
-"   ret\n");
-
-asm(".global multiprocess_clone\n" \
-".type multiprocess_clone, function\n" \
-"multiprocess_clone:\n" \
-"	mov $0x10712, %eax\n" \
-"	out %eax, $0\n" \
-"   ret\n");
-
-asm(".global multiprocess_wait\n" \
-".type multiprocess_wait, function\n" \
-"multiprocess_wait:\n" \
-"	mov $0x10713, %eax\n" \
-"	out %eax, $0\n" \
-"   ret\n");
-
-asm(".global vcpuid\n" \
-".type vcpuid, function\n" \
-"vcpuid:\n" \
-"	mov %gs:(0x0), %eax\n" \
-"   ret\n");
-#endif
 extern void register_func(...);
 
 /* Register callbacks for various modes of operations */
@@ -259,6 +177,88 @@ DYNAMIC_CALL(curl_fetch, 0xB86011FB, const char*, size_t, struct curl_opts*)
 	extern unsigned name ##_size;
 
 #define TRUST_ME(ptr)    ((void*)(uintptr_t)(ptr))
+
+#ifndef KVM_API_ALREADY_DEFINED
+asm(".global register_func\n" \
+".type register_func, function\n" \
+"register_func:\n" \
+"	mov $0x10000, %eax\n" \
+"	out %eax, $0\n");
+
+asm(".global wait_for_requests\n" \
+".type wait_for_requests, function\n" \
+"wait_for_requests:\n" \
+"	mov $0x10001, %eax\n" \
+"	out %eax, $0\n");
+
+asm(".global backend_response\n" \
+".type backend_response, function\n" \
+"backend_response:\n" \
+"	mov $0xFFFF, %eax\n" \
+"	out %eax, $0\n");
+
+asm(".global storage_call\n" \
+".type storage_call, function\n" \
+"storage_call:\n" \
+"	mov $0x10707, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global storage_callv\n" \
+".type storage_callv, function\n" \
+"storage_callv:\n" \
+"	mov $0x10708, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global storage_return\n" \
+".type storage_return, function\n" \
+"storage_return:\n" \
+"	mov $0xFFFF, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global vmcommit\n" \
+".type vmcommit, function\n" \
+"vmcommit:\n" \
+"	mov $0x1070A, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global multiprocess\n" \
+".type multiprocess, function\n" \
+"multiprocess:\n" \
+"	mov $0x10710, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global multiprocess_array\n" \
+".type multiprocess_array, function\n" \
+"multiprocess_array:\n" \
+"	mov $0x10711, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global multiprocess_clone\n" \
+".type multiprocess_clone, function\n" \
+"multiprocess_clone:\n" \
+"	mov $0x10712, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global multiprocess_wait\n" \
+".type multiprocess_wait, function\n" \
+"multiprocess_wait:\n" \
+"	mov $0x10713, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global vcpuid\n" \
+".type vcpuid, function\n" \
+"vcpuid:\n" \
+"	mov %gs:(0x0), %eax\n" \
+"   ret\n");
+#endif
 
 #ifdef __cplusplus
 }
