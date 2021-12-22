@@ -8,7 +8,25 @@ extern "C" {
 #endif
 extern void register_func(...);
 
-/* Register callbacks for various modes of operations */
+/**
+ * During the start of the program, one should register functions that will
+ * handle different types of requests, like GET, POST and streaming POST.
+ *
+ * Example:
+ *  int main()
+ *  {
+ *  	printf("Hello World\n"); // Will be logged
+ *  	set_backend_get(my_request_handler);
+ *  	wait_for_requests();
+ *  }
+ *
+ * The example above will register a function called 'my_request_handler' as
+ * the function that will get called on every single GET request. When the
+ * main body is completed, we call 'wait_for_requests()' to signal that
+ * the program has successfully initialized, and is ready to handle requests.
+ *
+ * Register callbacks for various modes of operations:
+**/
 static inline void set_on_recv(void(*f)(const char*)) { register_func(0, f); }
 static inline void set_backend_get(void(*f)(const char*, int, int)) { register_func(1, f); }
 static inline void set_backend_post(void(*f)(const char*, const uint8_t*, size_t)) { register_func(2, f); }
@@ -18,7 +36,22 @@ static inline void set_backend_stream_post(void(*f)(const uint8_t*, size_t)) { r
    the end of int main(). */
 extern void wait_for_requests();
 
-/* Use this to create a backend response from a KVM backend */
+/**
+ * When a request arrives the handler function is the only function that will
+ * be called. main() is no longer in the picture. Any actions performed during
+ * request handling will disappear after the request is processed.
+ *
+ * We will produce a response using the 'backend_response' function, which will
+ * conclude the request.
+ *
+ * Example:
+ *  static void my_request_handler(const char* url, int req, int resp)
+ *  {
+ *  	const char *ctype = "text/plain";
+ *  	const char *cont = "Hello World";
+ *  	backend_response(200, ctype, strlen(ctype), cont, strlen(cont));
+ *  }
+ **/
 extern void __attribute__((noreturn, used))
 backend_response(int16_t status, const void *t, uintptr_t, const void *c, uintptr_t);
 
@@ -66,7 +99,7 @@ storage_call(storage_func, const void* src, size_t, void* dst, size_t);
 extern long
 storage_callv(storage_func, size_t n, const struct virtbuffer[n], void* dst, size_t);
 
-/* Used to return from storage functions */
+/* Used to return data from storage functions */
 extern void
 storage_return(const void* data, size_t len);
 
@@ -74,7 +107,7 @@ static inline void
 storage_return_nothing(void) { storage_return(NULL, 0); }
 
 /* Record the current state into a new VM, and make that
-   VM handle future requests. WARNING: RCU, Racey */
+   VM handle future requests. WARNING: RCU, Racy. */
 extern long vmcommit(void);
 
 /* Start multi-processing using @n vCPUs on given function,
