@@ -110,6 +110,31 @@ backend_response_str(int16_t status, const char *ctype, const char *content)
 	backend_response(status, ctype, strlen(ctype), content, strlen(content));
 }
 
+/**
+ * Storage program
+ *
+ * Every tenant has a storage program that is initialized separately (and in
+ * the same way as the main program) at the start. This program has a ton
+ * of memory and is always available. Both the main and the storage programs
+ * are running the same original program provided by the tenant at the start,
+ * but they can diverge greatly over time.
+ * To access storage you can use any of the API calls below when handling a
+ * request. The access is serialized, meaning only one request can access the
+ * storage at a time. Because of this, one should try to keep the number and
+ * the duration of the calls low, preferrably calculating as much as possible
+ * before making any storage accesses.
+ *
+ * When calling into the storage program the data you provide will be copied into
+ * the VM, and the response you give back will be copied back into the request-
+ * handling VM. This is extra overhead, but safe.
+ * The purpose of the storage VM is to enable mutable state. That is, you are
+ * able to make live changes to your storage VM, which persists across
+ * requests. You can also serialize the state across live updates so that it
+ * can be persisted when you have program updates. And finally, it can be
+ * saved to a file (with a very specific name) on the servers disk, so that
+ * it can be persisted across normal server updates and reboots.
+**/
+
 /* Vector-based serialized call into storage VM */
 struct virtbuffer {
 	void  *data;
@@ -143,11 +168,12 @@ extern long vmcommit(void);
    vCPU id during asynchronous operation.
 
    Example usage:
-	// Start 7 additional vCPUs
+	// Start 7 additional vCPUs, each running the given function with the
+	// same provided argument:
 	multiprocess(8, (multiprocess_t)dotprod_mp_avx, &data);
-	// Run the first portion on the main vCPU (with id 0)
+	// Run the first portion on the current vCPU (with id 0):
 	dotprod_mp_avx(&data);
-	// Wait for the asynchronous operation to complete
+	// Wait for the asynchronous multi-processing operation to complete:
 	multiprocess_wait();
 */
 typedef void(*multiprocess_t)(void*);
@@ -180,10 +206,11 @@ extern long multiprocess_array(size_t n,
 */
 extern long multiprocess_clone(size_t n, void* stack_base, size_t stack_size);
 
-/* Sleep until multi-processing workload has finished. */
+/* Wait until all multi-processing workloads have ended running. */
 extern long multiprocess_wait();
 
-/* Returns the current vCPU ID. Used during multi-processing. */
+/* Returns the current vCPU ID. Used in processing functions during
+   multi-processing operation. */
 extern int vcpuid() __attribute__((const));
 
 /* This cannot be used when KVM is used as a backend */
@@ -201,6 +228,10 @@ extern int vcpuid() __attribute__((const));
 #endif
 DYNAMIC_CALL(goto_dns, 0x746238D2)
 
+/* Fetch content from provided URL. Content must be allocated prior to
+   calling the function. The fetcher will fill out the structure if the
+   fetch succeeds. If a serious error is encountered, the function returns
+   a non-zero value and the struct contents is undefined. */
 struct curl_opts {
 	long   status;
 	size_t content_length;
@@ -210,7 +241,7 @@ struct curl_opts {
 };
 DYNAMIC_CALL(curl_fetch, 0xB86011FB, const char*, size_t, struct curl_opts*)
 
-/* Embed binary data into executable */
+/* Embed binary data into executable. This data has no guaranteed alignment. */
 #define EMBED_BINARY(name, filename) \
 	asm(".section .rodata\n" \
 	"	.global " #name "\n" \
