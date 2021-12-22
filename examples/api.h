@@ -14,6 +14,12 @@ asm(".global register_func\n" \
 "	mov $0x10000, %eax\n" \
 "	out %eax, $0\n");
 
+asm(".global wait_for_requests\n" \
+".type wait_for_requests, function\n" \
+"wait_for_requests:\n" \
+"	mov $0x10001, %eax\n" \
+"	out %eax, $0\n");
+
 asm(".global backend_response\n" \
 ".type backend_response, function\n" \
 "backend_response:\n" \
@@ -86,14 +92,13 @@ extern void register_func(...);
 
 /* Register callbacks for various modes of operations */
 static inline void set_on_recv(void(*f)(const char*)) { register_func(0, f); }
-static inline void set_backend_compute(void(*f)(const char*, int, int)) { register_func(1, f); }
-static inline void set_backend_post(void(*f)(const char*, const char*, size_t)) { register_func(2, f); }
-static inline void set_backend_stream_post(void(*f)(const char*, size_t)) { register_func(3, f); }
+static inline void set_backend_get(void(*f)(const char*, int, int)) { register_func(1, f); }
+static inline void set_backend_post(void(*f)(const char*, const uint8_t*, size_t)) { register_func(2, f); }
+static inline void set_backend_stream_post(void(*f)(const uint8_t*, size_t)) { register_func(3, f); }
 
 /* Wait for requests without terminating machine. Call this just before
    the end of int main(). */
-static inline void
-wait_for_requests(void) { storage_return(NULL, 0); }
+extern void wait_for_requests();
 
 /* Use this to create a backend response from a KVM backend */
 extern void __attribute__((noreturn, used))
