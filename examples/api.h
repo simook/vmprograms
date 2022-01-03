@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-extern void register_func(...);
+extern void register_func(int, ...);
 
 /**
  * During the start of the program, one should register functions that will
@@ -216,7 +216,8 @@ asm(".global register_func\n" \
 ".type register_func, function\n" \
 "register_func:\n" \
 "	mov $0x10000, %eax\n" \
-"	out %eax, $0\n");
+"	out %eax, $0\n" \
+"	ret\n");
 
 asm(".global wait_for_requests\n" \
 ".type wait_for_requests, function\n" \
