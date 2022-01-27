@@ -1,4 +1,4 @@
-#include "api.h"
+#include "varnish.h"
 #include <espeak-ng/speak_lib.h>
 #include <cassert>
 #include <cstdint>
@@ -69,32 +69,36 @@ static int callback(short* s, int length, espeak_EVENT* ev)
 }
 
 static const int buflength = 500;
-int main()
-{
-	const char voicename[] = "Storm";
-	const char *path = "/usr/lib/x86_64-linux-gnu/espeak-ng-data";
-
-	espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, buflength, path, 0x0);
-	espeak_SetVoiceByName(voicename);
-	espeak_SetSynthCallback(callback);
-
-	printf("*** espeak-ng initialized ***\n");
-}
-
-extern "C" __attribute__((used))
-void my_backend(const char *text)
+static void text_to_speech(const char *text, int, int)
 {
 	static const unsigned int flags = espeakCHARS_AUTO;
 	unsigned int* identifier = NULL;
 	void* user_data = NULL;
 
-	setupWAV(wav, 22050, 1);
-
-	printf("Saying  '%s'...\n", text);
-	espeak_Synth(&text[1], buflength, 0, POS_CHARACTER, 0, flags, identifier, user_data);
+	// Skip the /x portion of the URL
+	printf("Saying  '%s'...\n", &text[2]);
+	espeak_Synth(&text[2], buflength, 0, POS_CHARACTER, 0, flags, identifier, user_data);
 
 	finalizeWAV(wav, sampleCount);
 
 	const char mtype[] = "audio/vnd.wave";
 	backend_response(200, mtype, sizeof(mtype)-1, wav.data(), wav.size());
+}
+
+int main()
+{
+	const char voicename[] = "Storm";
+	const char *path = "/usr/lib/x86_64-linux-gnu/espeak-ng-data";
+
+	// Initialize espeak-ng
+	espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, buflength, path, 0x0);
+	espeak_SetVoiceByName(voicename);
+	espeak_SetSynthCallback(callback);
+
+	// Create the WAV file header
+	setupWAV(wav, 22050, 1);
+
+	printf("*** espeak-ng initialized ***\n");
+	set_backend_get(text_to_speech);
+	wait_for_requests();
 }

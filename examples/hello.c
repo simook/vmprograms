@@ -1,4 +1,4 @@
-#include "api.h"
+#include "varnish.h"
 #include <assert.h>
 #include <malloc.h>
 #include <stdio.h>
@@ -9,37 +9,21 @@ static void my_post_storage(size_t n, struct virtbuffer[n], size_t);
 static char data[6000];
 static int  datalen = 0;
 
-int main(int argc, char **argv)
+static void nada_processing(void* arg)
 {
-	datalen = snprintf(data, sizeof(data),
-		"Hello World!");
-#ifndef SILENT_START
-	printf("Hello from '%s'! Storage=%s\n", argv[1], argv[2]);
-#endif
 }
 
-void nada_processing(void* arg) {
-
-}
-
-extern void on_recv(const char *arg)
-{
-	const char ctype[] = "text/plain";
-	backend_response(200, ctype, sizeof(ctype)-1, data, datalen);
-}
-
-__attribute__((used))
-extern void my_backend(const char *arg, int a, int b)
+static void
+handle_get(const char *arg, int a, int b)
 {
 //	multiprocess(8, nada_processing, NULL);
 //	multiprocess_wait();
 	const char ctype[] = "text/plain";
 	backend_response(200, ctype, sizeof(ctype)-1, data, datalen);
-	//backend_response(404, NULL, 0, NULL, 0);
 }
 
-extern void __attribute__((used))
-my_post_backend(const char *arg, void *indata, size_t inlen)
+static void
+handle_post(const char *arg, const uint8_t *indata, size_t inlen)
 {
 	//char result[sizeof(data)];
 	//const long rlen =
@@ -54,12 +38,14 @@ my_post_backend(const char *arg, void *indata, size_t inlen)
 }
 
 char* gdata = NULL;
+size_t glen = 0;
 
-extern long __attribute__((used))
-my_streaming_function(void *data, size_t len, size_t processed, int last)
+static long
+handle_streaming_post(const uint8_t *data, size_t len)
 {
-	gdata = realloc(gdata, processed + len);
-	memcpy(&gdata[processed], data, len);
+	gdata = realloc(gdata, glen + len);
+	memcpy(&gdata[glen], data, len);
+	glen += len;
 	return len; /* Required */
 }
 extern void __attribute__((used))
@@ -115,4 +101,18 @@ extern void on_resume_update(size_t len)
 
 	/* Do something with restored state here */
 	printf("Data state restored\n");
+}
+
+int main(int argc, char **argv)
+{
+	datalen = snprintf(data, sizeof(data),
+		"Hello World!");
+#ifndef SILENT_START
+	printf("Hello from '%s'! Storage=%s\n", argv[1], argv[2]);
+#endif
+
+	set_backend_get(handle_get);
+	set_backend_post(handle_post);
+	set_backend_stream_post(handle_streaming_post);
+	wait_for_requests();
 }

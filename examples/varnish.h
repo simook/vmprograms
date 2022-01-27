@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-extern void register_func(int, ...);
+extern void register_func(...);
 
 /**
  * During the start of the program, one should register functions that will
@@ -31,6 +31,9 @@ static inline void set_on_recv(void(*f)(const char*)) { register_func(0, f); }
 static inline void set_backend_get(void(*f)(const char*, int, int)) { register_func(1, f); }
 static inline void set_backend_post(void(*f)(const char*, const uint8_t*, size_t)) { register_func(2, f); }
 static inline void set_backend_stream_post(void(*f)(const uint8_t*, size_t)) { register_func(3, f); }
+
+static inline void set_on_live_update(void(*f)()) { register_func(4, f); }
+static inline void set_on_live_restore(void(*f)(size_t)) { register_func(5, f); }
 
 /* Wait for requests without terminating machine. Call this just before
    the end of int main(). */
@@ -59,6 +62,23 @@ static inline void
 backend_response_str(int16_t status, const char *ctype, const char *content)
 {
 	backend_response(status, ctype, strlen(ctype), content, strlen(content));
+}
+
+/**
+ * HTTP header field manipulation
+ *
+**/
+extern void
+http_append(int where, const char*, size_t);
+
+/**
+ * Varnish caching configuration
+ *
+**/
+extern long
+syscall_set_cacheable(int cached, long ttl_milliseconds);
+static inline long set_cacheable(int cached, float ttl) {
+	return syscall_set_cacheable(cached, ttl * 1000);
 }
 
 /**
@@ -98,6 +118,12 @@ storage_call(storage_func, const void* src, size_t, void* dst, size_t);
 
 extern long
 storage_callv(storage_func, size_t n, const struct virtbuffer[n], void* dst, size_t);
+
+/* Create an async task that is scheduled to run next in storage. The
+   new task waits until other tasks are done before starting a new one,
+   which will block the current thread, making this a blocking call. */
+extern long
+async_storage_task(void (*task)(void* arg), void* arg);
 
 /* Used to return data from storage functions */
 extern void
@@ -217,13 +243,27 @@ asm(".global register_func\n" \
 "register_func:\n" \
 "	mov $0x10000, %eax\n" \
 "	out %eax, $0\n" \
-"	ret\n");
+"	ret");
 
 asm(".global wait_for_requests\n" \
 ".type wait_for_requests, function\n" \
 "wait_for_requests:\n" \
 "	mov $0x10001, %eax\n" \
 "	out %eax, $0\n");
+
+asm(".global syscall_set_cacheable\n" \
+".type syscall_set_cacheable, function\n" \
+"syscall_set_cacheable:\n" \
+"	mov $0x10005, %eax\n" \
+"	out %eax, $0\n" \
+"	ret");
+
+asm(".global http_append\n" \
+".type http_append, function\n" \
+"http_append:\n" \
+"	mov $0x10020, %eax\n" \
+"	out %eax, $0\n" \
+"	ret");
 
 asm(".global backend_response\n" \
 ".type backend_response, function\n" \
@@ -242,6 +282,13 @@ asm(".global storage_callv\n" \
 ".type storage_callv, function\n" \
 "storage_callv:\n" \
 "	mov $0x10708, %eax\n" \
+"	out %eax, $0\n" \
+"   ret\n");
+
+asm(".global async_storage_task\n" \
+".type async_storage_task, function\n" \
+"async_storage_task:\n" \
+"	mov $0x10709, %eax\n" \
 "	out %eax, $0\n" \
 "   ret\n");
 

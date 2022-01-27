@@ -1,5 +1,5 @@
 #include <cstdio>
-#include "../api.h"
+#include "../varnish.h"
 
 extern "C" {
 	struct facedetect_result {
